@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { motionConfig } from '../../../lib/motion';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -40,18 +41,19 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-purple-50 to-orange-50 relative overflow-hidden grain">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50/50 via-purple-50/30 to-orange-50/50 relative overflow-hidden">
+      <div className="absolute inset-0 grain" />
       <motion.div
-        initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
+        initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }}
         animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="glass rounded-3xl shadow-2xl p-12 w-full max-w-md"
+        transition={motionConfig.slow}
+        className="glass rounded-3xl shadow-deep p-12 w-full max-w-md relative z-10"
       >
         <motion.h1
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.6 }}
-          className="text-4xl font-bold text-center bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-8"
+          transition={{ ...motionConfig.arrive, delay: 0.2 }}
+          className="text-5xl font-bold text-center bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-10 font-serif"
         >
           Admin Login
         </motion.h1>
@@ -59,9 +61,9 @@ export default function AdminLogin() {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
+            transition={{ ...motionConfig.arrive, delay: 0.3 }}
           >
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2 font-light">
               Username
             </label>
             <input
@@ -70,15 +72,15 @@ export default function AdminLogin() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-pink-600 focus:border-transparent transition-all duration-300 bg-white/50 backdrop-blur-sm"
+              className="w-full px-5 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white/80 backdrop-blur-sm font-light"
             />
           </motion.div>
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
+            transition={{ ...motionConfig.arrive, delay: 0.4 }}
           >
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2 font-light">
               Password
             </label>
             <input
@@ -87,14 +89,14 @@ export default function AdminLogin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-pink-600 focus:border-transparent transition-all duration-300 bg-white/50 backdrop-blur-sm"
+              className="w-full px-5 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white/80 backdrop-blur-sm font-light"
             />
           </motion.div>
           {error && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm"
+              className="bg-red-50/80 border border-red-200 text-red-700 px-5 py-3.5 rounded-xl text-sm font-light"
             >
               {error}
             </motion.div>
@@ -102,9 +104,10 @@ export default function AdminLogin() {
           <motion.button
             type="submit"
             disabled={loading}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            transition={motionConfig.arrive}
+            className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-medium py-3.5 px-4 rounded-xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-medium hover:shadow-deep"
           >
             {loading ? 'Logging in...' : 'Login'}
           </motion.button>

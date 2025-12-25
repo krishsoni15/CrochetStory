@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import { motion } from 'framer-motion';
 
-export default function MagneticButton({ children, className = '', ...props }) {
+export default function MagneticButton({ children, className = '', as: Component = 'button', ...props }) {
   const ref = useRef(null);
 
   const handleMouseMove = (e) => {
@@ -14,7 +14,7 @@ export default function MagneticButton({ children, className = '', ...props }) {
     const x = e.clientX - rect.left - rect.width / 2;
     const y = e.clientY - rect.top - rect.height / 2;
 
-    button.style.transform = `translate(${x * 0.2}px, ${y * 0.2}px)`;
+    button.style.transform = `translate(${x * 0.15}px, ${y * 0.15}px)`;
   };
 
   const handleMouseLeave = () => {
@@ -24,25 +24,20 @@ export default function MagneticButton({ children, className = '', ...props }) {
   };
 
   return (
-    <motion.button
+    <motion.div
       ref={ref}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className={`relative overflow-hidden group ${className}`}
-      {...props}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
     >
-      <span className="relative z-10">{children}</span>
-      <motion.span
-        className="absolute inset-0 bg-gradient-to-r from-pink-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        initial={false}
-      />
-      <motion.span
-        className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500"
-        initial={false}
-      />
-    </motion.button>
+      <Component
+        className={`relative overflow-hidden group ${className}`}
+        {...props}
+      >
+        <span className="relative z-10">{children}</span>
+      </Component>
+    </motion.div>
   );
 }
-
