@@ -1,34 +1,56 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useTextReveal } from '../../hooks/useTextReveal';
+import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import ProductCard from '../../components/ProductCard';
+import ProductCardShop from '../../components/ProductCardShop';
+import ProductDetailModal from '../../components/ProductDetailModal';
+import ProductSkeleton from '../../components/ProductSkeleton';
+import DeleteConfirmModal from '../../components/DeleteConfirmModal';
+import OrderForm from '../../components/OrderForm';
+import { HomeIcon, BowIcon, GiftIcon, SparkleIcon } from '../../components/Icons';
+import CustomLoader from '../../components/CustomLoader';
 import { motionConfig } from '../../lib/motion';
-import InteractiveSticker from '../../components/InteractiveSticker';
-import Badge from '../../components/Badge';
-import YarnLoop from '../../components/YarnLoop';
-import { HomeIcon, BowIcon, GiftIcon, SparkleIcon, YarnIcon, TruckIcon, ScissorsIcon } from '../../components/Icons';
-import GiftingImagination from '../../components/GiftingImagination';
-import PersonalTouch from '../../components/PersonalTouch';
+import { useAdminAuth } from '../../hooks/useAdminAuth';
+import { YarnIcon } from '../../components/Icons';
 
-const categories = [
-  { id: 'Home Decor', icon: HomeIcon, description: 'Beautiful handcrafted items to decorate your home.', color: 'pink' },
-  { id: 'Hair Accessories', icon: BowIcon, description: 'Stylish accessories to complement your hairstyle.', color: 'purple' },
-  { id: 'Gift Articles', icon: GiftIcon, description: 'Perfect gifts made with love for your loved ones.', color: 'orange' },
-  { id: 'Others', icon: SparkleIcon, description: 'Unique handcrafted items for every occasion.', color: 'green' },
+const SORT_OPTIONS = [
+  { value: 'latest', label: 'Latest' },
+  { value: 'price-low', label: 'Price: Low → High' },
+  { value: 'price-high', label: 'Price: High → Low' },
+];
+
+const CATEGORIES = [
+  { id: 'Home Decor', icon: HomeIcon, color: 'pink', short: 'Home' },
+  { id: 'Hair Accessories', icon: BowIcon, color: 'purple', short: 'Hair' },
+  { id: 'Gift Articles', icon: GiftIcon, color: 'orange', short: 'Gift' },
+  { id: 'Others', icon: SparkleIcon, color: 'green', short: 'Others' },
 ];
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [sortBy, setSortBy] = useState('latest');
   const [loading, setLoading] = useState(true);
-  const [selectedRecipient, setSelectedRecipient] = useState(null);
-  const [personalName, setPersonalName] = useState('');
-
-  const titleRef = useTextReveal({ stagger: 0.03 });
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showProductDetail, setShowProductDetail] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [showOrderForm, setShowOrderForm] = useState(false);
+  const [productToOrder, setProductToOrder] = useState(null);
+  const [displayedCount, setDisplayedCount] = useState(() => {
+    // Set initial count based on screen size
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 1024 ? 4 : 8; // 4 for mobile/tablet, 8 for desktop
+    }
+    return 8;
+  });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const { isAdmin } = useAdminAuth();
 
   useEffect(() => {
     fetchProducts();
@@ -36,213 +58,1032 @@ export default function ProductsPage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products');
+      setLoading(true);
+      const res = await fetch('/api/products', {
+        cache: 'no-store',
+      });
       const data = await res.json();
       if (res.ok) {
-        setProducts(data);
+        setProducts(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Failed to fetch products:', data);
+        setProducts([]);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredProducts = selectedCategory
-    ? products.filter((p) => p.category === selectedCategory)
-    : products;
+  const handleEditProduct = (product) => {
+    if (!product || !product._id) {
+      console.error('Invalid product for editing');
+      alert('Invalid product. Cannot edit.');
+      return;
+    }
+    console.log('Editing product:', product);
+    setEditingProduct(product);
+    setShowAddForm(true);
+  };
+
+  const handleDeleteClick = (productId) => {
+    if (!productId) {
+      console.error('No product ID provided for deletion');
+      return;
+    }
+
+    // Find product for confirmation
+    const product = products.find(p => p._id === productId);
+    if (product) {
+      setProductToDelete(product);
+      setShowDeleteModal(true);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete || !productToDelete._id) {
+      setShowDeleteModal(false);
+      setProductToDelete(null);
+      return;
+    }
+
+    const productId = productToDelete._id;
+
+    try {
+      const res = await fetch(`/api/products/${productId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // Remove product from state immediately for better UX
+        setProducts(prevProducts => prevProducts.filter((p) => p._id !== productId));
+        
+        // If deleted product was selected, clear selection
+        if (selectedProduct && selectedProduct._id === productId) {
+          setSelectedProduct(null);
+          setShowProductDetail(false);
+        }
+        
+        // Close modal
+        setShowDeleteModal(false);
+        setProductToDelete(null);
+        
+        // Refresh to ensure consistency
+        await fetchProducts();
+      } else {
+        const errorMsg = data.error || 'Failed to delete product. Please try again.';
+        alert(errorMsg);
+        setShowDeleteModal(false);
+        setProductToDelete(null);
+        // Refresh products list on error to ensure consistency
+        await fetchProducts();
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('An error occurred while deleting the product. Please check your connection and try again.');
+      setShowDeleteModal(false);
+      setProductToDelete(null);
+      // Refresh products list on error
+      await fetchProducts();
+    }
+  };
+
+  const handleProductClick = (product) => {
+    setSelectedProduct(product);
+    setShowProductDetail(true);
+  };
+
+  const handleOrderClick = (product) => {
+    setProductToOrder(product);
+    setShowOrderForm(true);
+  };
+
+  // Filter and sort products
+  const filteredAndSortedProducts = useMemo(() => {
+    let filtered = selectedCategory
+      ? products.filter((p) => p.category === selectedCategory)
+      : products;
+
+    // Sort products
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'price-low':
+          return (a.price || 0) - (b.price || 0);
+        case 'price-high':
+          return (b.price || 0) - (a.price || 0);
+        case 'latest':
+        default:
+          // Sort by creation date (newest first)
+          const dateA = new Date(a.createdAt || 0);
+          const dateB = new Date(b.createdAt || 0);
+          return dateB - dateA;
+      }
+    });
+
+    return sorted;
+  }, [products, selectedCategory, sortBy]);
+
+  // Reset displayed count when filters change
+  useEffect(() => {
+    const initialItems = typeof window !== 'undefined' && window.innerWidth < 1024 ? 4 : 8;
+    setDisplayedCount(initialItems);
+  }, [selectedCategory, sortBy]);
+
+  // Items to display (paginated)
+  const displayedProducts = useMemo(() => {
+    return filteredAndSortedProducts.slice(0, displayedCount);
+  }, [filteredAndSortedProducts, displayedCount]);
+
+  // Check if there are more products to load
+  const hasMore = displayedProducts.length < filteredAndSortedProducts.length;
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const handleScroll = () => {
+      // Check if user scrolled near bottom (within 200px)
+      if (
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 200 &&
+        !loadingMore &&
+        hasMore
+      ) {
+        setLoadingMore(true);
+        
+        // Simulate loading delay for better UX
+        setTimeout(() => {
+          const loadMoreCount = window.innerWidth < 1024 ? 4 : 8;
+          setDisplayedCount((prev) => prev + loadMoreCount);
+          setLoadingMore(false);
+        }, 800);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loadingMore, hasMore]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-joyful-gradient relative overflow-hidden">
-      {/* Decorative Yarn Loops */}
-      <YarnLoop color="pink" size={80} delay={0} className="top-20 left-10 opacity-20" />
-      <YarnLoop color="purple" size={60} delay={1} className="top-40 right-20 opacity-15" />
-      <YarnLoop color="orange" size={70} delay={2} className="bottom-20 left-1/4 opacity-18" />
-      <YarnLoop color="green" size={50} delay={1.5} className="bottom-40 right-1/3 opacity-15" />
-      
+    <div className="min-h-screen flex flex-col bg-white relative">
       <Navbar />
 
-      <main className="flex-grow pt-20 sm:pt-24">
-        <section className="py-12 sm:py-16 md:py-20 lg:py-24 xl:py-32 px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="max-w-7xl mx-auto">
-            {/* Header with Stickers */}
-            <div className="text-center mb-8 sm:mb-12">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="flex flex-wrap justify-center gap-3 mb-6"
-              >
-                <InteractiveSticker text="Handmade" color="pink" size="sm" delay={0.1} />
-                <InteractiveSticker text="Made with Love" color="purple" size="sm" delay={0.2} />
-                <InteractiveSticker text="Perfect Gift" color="orange" size="sm" delay={0.3} />
-              </motion.div>
+      {/* Hero Section - Elegant */}
+      <section className="pt-20 sm:pt-24 pb-4 sm:pb-5 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50/50 mt-20 sm:mt-24">
+        <div className="max-w-7xl mx-auto text-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2">
+            Explore Our{' '}
+            <span className="bg-gradient-to-r from-pink-600 via-purple-600 to-orange-600 bg-clip-text text-transparent">
+              Creations
+            </span>
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600 font-light">
+            Handcrafted with love and care
+          </p>
+        </div>
+      </section>
 
-              <motion.h1
-                ref={titleRef}
-                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-display font-bold text-gray-900 mb-4 sm:mb-6 sm:mb-8 leading-tight"
-              >
-                Explore Our
-                <br />
-                <span className="bg-gradient-to-r from-pink-600 via-purple-600 to-orange-600 bg-clip-text text-transparent">
-                  Creations
-                </span>
-              </motion.h1>
+      {/* Main Content */}
+      <a href="#main-content" className="skip-to-main">
+        Skip to main content
+      </a>
+      <main id="main-content" className="flex-grow px-4 sm:px-6 lg:px-8 py-5 sm:py-7 bg-gradient-to-b from-gray-50 to-white" tabIndex={-1}>
+        <div className="max-w-7xl mx-auto">
+          {/* Sort, Categories & Admin Controls - Fixed Sticky Bar */}
+          <div className="sticky top-20 sm:top-24 z-40 flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-5 sm:mb-7 gap-3 bg-white/95 backdrop-blur-xl rounded-2xl p-4 sm:p-5 shadow-lg border border-gray-200/50 transition-all duration-300">
+            {/* Left Side: Sort & Categories */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 min-w-0">
+              {/* Sort Dropdown */}
+              <div className="relative flex-shrink-0">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none px-4 py-2.5 pr-10 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500 focus:outline-none transition-all cursor-pointer hover:border-pink-300 shadow-sm w-full sm:w-auto"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
 
-              <motion.p
-                initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                transition={{ ...motionConfig.slow, delay: 0.4 }}
-                className="text-lg sm:text-xl md:text-2xl text-gray-700 mb-8 sm:mb-12 max-w-3xl mx-auto font-light leading-relaxed"
-              >
-                Discover our collection of handcrafted crochet products, each one made with{' '}
-                <span className="handwritten text-xl sm:text-2xl md:text-3xl text-pink-600 font-bold">
-                  love
-                </span>
-                {' '}and care.
-              </motion.p>
-            </div>
-
-            {/* Categories */}
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...motionConfig.arrive, delay: 0.6 }}
-              className="mb-12 sm:mb-16 md:mb-20 lg:mb-24"
-            >
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-4 sm:mb-6 text-center">
-                Select a Category
-              </h2>
-              <p className="text-gray-700 text-center mb-8 sm:mb-12 text-base sm:text-lg font-light max-w-2xl mx-auto px-4">
-                Explore our handcrafted crochet collections, tailored for every style and occasion.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
-                {categories.map((category, index) => {
+              {/* Category Filters - Scrollable */}
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide flex-1 min-w-0 snap-x snap-mandatory touch-pan-x">
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-full font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 snap-start ${
+                    selectedCategory === null
+                      ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md font-semibold'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  All
+                </button>
+                {CATEGORIES.map((category) => {
                   const IconComponent = category.icon;
+                  const isActive = selectedCategory === category.id;
                   return (
-                  <motion.button
-                    key={category.id}
-                    initial={{ opacity: 0, y: 50, rotate: -3 }}
-                    animate={{ opacity: 1, y: 0, rotate: 0 }}
-                    transition={{ ...motionConfig.arrive, delay: 0.8 + index * 0.1 }}
-                    whileHover={{ scale: 1.03, rotate: 2, y: -8 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedCategory(selectedCategory === category.id ? null : category.id)}
-                    className={`relative p-6 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-700 text-center overflow-hidden group ${
-                      selectedCategory === category.id
-                        ? category.color === 'pink'
-                          ? 'bg-gradient-to-br from-pink-500 to-pink-700 text-white shadow-glow'
-                          : category.color === 'purple'
-                          ? 'bg-gradient-to-br from-purple-500 to-purple-700 text-white shadow-glow'
-                          : category.color === 'orange'
-                          ? 'bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-glow'
-                          : 'bg-gradient-to-br from-green-500 to-green-700 text-white shadow-glow'
-                        : 'bg-white text-gray-900 hover:bg-gradient-to-br hover:from-pink-50 hover:to-purple-50 border-2 border-gray-100'
-                    }`}
-                  >
-                    <motion.div
-                      className={`mb-4 sm:mb-6 flex justify-center ${
-                        selectedCategory === category.id ? 'text-white' : 'text-gray-700'
+                    <motion.button
+                      key={category.id}
+                      onClick={() => setSelectedCategory(category.id)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 flex-shrink-0 snap-start ${
+                        isActive
+                          ? category.color === 'pink'
+                            ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-md font-semibold'
+                            : category.color === 'purple'
+                            ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md font-semibold'
+                            : category.color === 'orange'
+                            ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md font-semibold'
+                            : 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md font-semibold'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
-                      whileHover={{ scale: 1.15, rotate: 8 }}
-                      transition={motionConfig.arrive}
                     >
-                      <IconComponent size={64} className={selectedCategory === category.id ? 'text-white' : `text-${category.color}-500`} />
-                    </motion.div>
-                    <h3 className="text-xl sm:text-2xl font-display font-bold mb-2 sm:mb-3">{category.id}</h3>
-                    <p className={`text-xs sm:text-sm leading-relaxed ${
-                      selectedCategory === category.id ? 'text-white/90' : 'text-gray-600'
-                    } font-light`}>
-                      {category.description}
-                    </p>
-                    <motion.div
-                      className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${
-                        category.color === 'pink' ? 'bg-gradient-to-br from-pink-500/10 to-pink-700/10' :
-                        category.color === 'purple' ? 'bg-gradient-to-br from-purple-500/10 to-purple-700/10' :
-                        category.color === 'orange' ? 'bg-gradient-to-br from-orange-500/10 to-orange-700/10' :
-                        'bg-gradient-to-br from-green-500/10 to-green-700/10'
-                      }`}
-                      initial={false}
-                    />
-                  </motion.button>
+                      <IconComponent
+                        className={`flex-shrink-0 ${
+                          isActive
+                            ? 'text-white'
+                            : category.color === 'pink'
+                            ? 'text-pink-500'
+                            : category.color === 'purple'
+                            ? 'text-purple-500'
+                            : category.color === 'orange'
+                            ? 'text-orange-500'
+                            : 'text-green-500'
+                        }`}
+                        size={14}
+                      />
+                      <span className="hidden sm:inline">{category.id}</span>
+                      <span className="sm:hidden">{category.short}</span>
+                    </motion.button>
                   );
                 })}
               </div>
-            </motion.div>
+            </div>
 
-            {/* Products Grid */}
+            {/* Right Side: Refresh & Add Product */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 180 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={fetchProducts}
+                disabled={loading}
+                className="p-2.5 bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl transition-all disabled:opacity-50 hover:border-pink-300 hover:bg-gradient-to-br hover:from-pink-50 hover:to-purple-50 shadow-md hover:shadow-lg"
+                title="Refresh"
+                aria-label="Refresh products"
+              >
+                <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </motion.button>
+
+              {isAdmin && (
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowAddForm(true)}
+                  className="bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold shadow-lg hover:shadow-xl hover:shadow-pink-500/30 transition-all duration-300 flex items-center gap-2 whitespace-nowrap relative overflow-hidden group"
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                  <svg className="w-4 h-4 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span className="hidden sm:inline relative z-10">Add Product</span>
+                  <span className="sm:hidden relative z-10">Add</span>
+                </motion.button>
+              )}
+            </div>
+          </div>
+
+          {/* Products Grid - Premium Layout */}
+          {loading ? (
+            <div className="space-y-8">
+              {/* Custom Loading Indicator */}
+              <div className="flex justify-center py-8">
+                <CustomLoader size="large" text="Loading products..." />
+              </div>
+              {/* Skeleton Loaders - Only 4 on one row */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <ProductSkeleton key={i} />
+                ))}
+              </div>
+            </div>
+          ) : products.length === 0 ? (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ ...motionConfig.arrive, delay: 1.2 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12 sm:py-16"
             >
-              <div className="flex items-center justify-center gap-4 mb-8 sm:mb-12">
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-gray-900 text-center">
-                  {selectedCategory ? `${selectedCategory} Products` : 'Featured Products'}
-                </h2>
-                {selectedCategory && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setSelectedCategory(null)}
-                    className="p-2 bg-pink-100 hover:bg-pink-200 rounded-full transition-colors"
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <YarnIcon className="text-gray-400" size={32} />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
+                No products available
+              </h3>
+              <p className="text-sm text-gray-500 font-light">
+                Products will appear here once they are added.
+              </p>
+            </motion.div>
+          ) : filteredAndSortedProducts.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12 sm:py-16"
+            >
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <YarnIcon className="text-gray-400" size={32} />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
+                No products found
+              </h3>
+              <p className="text-sm text-gray-500 mb-4 font-light">
+                {selectedCategory
+                  ? `No products in "${selectedCategory}" category.`
+                  : 'No products available yet.'}
+              </p>
+              {selectedCategory && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedCategory(null)}
+                  className="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all"
+                >
+                  View All
+                </motion.button>
+              )}
+            </motion.div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+                {displayedProducts.map((product, index) => (
+                  <motion.div
+                    key={product._id || `product-${index}`}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ 
+                      duration: 0.3, 
+                      delay: Math.min(index * 0.02, 0.2),
+                      ease: [0.25, 0.46, 0.45, 0.94]
+                    }}
+                    layout
+                    whileHover={{ y: -4 }}
+                    className="transition-all duration-300"
                   >
-                    <span className="text-xl">✕</span>
-                  </motion.button>
+                    <ProductCardShop
+                      product={product}
+                      onEdit={isAdmin ? handleEditProduct : null}
+                      onDelete={isAdmin ? handleDeleteClick : null}
+                      onProductClick={handleProductClick}
+                      onOrderClick={handleOrderClick}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Loading More Indicator */}
+              {loadingMore && hasMore && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex justify-center py-8 mt-6"
+                >
+                  <CustomLoader size="default" text="Loading more products..." />
+                </motion.div>
+              )}
+            </>
+          )}
+
+          {/* Results Count - Premium */}
+          {!loading && filteredAndSortedProducts.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mt-8 sm:mt-10"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm border border-gray-100">
+                <svg className="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm sm:text-base text-gray-700 font-medium">
+                  <span className="text-pink-600 font-bold">{displayedProducts.length}</span> of <span className="text-pink-600 font-bold">{filteredAndSortedProducts.length}</span> product{filteredAndSortedProducts.length !== 1 ? 's' : ''} shown
+                  {selectedCategory && (
+                    <span className="text-gray-500"> in <span className="text-purple-600 font-semibold">{selectedCategory}</span></span>
+                  )}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </main>
+
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          isOpen={showProductDetail}
+          onClose={() => {
+            setShowProductDetail(false);
+            setTimeout(() => setSelectedProduct(null), 300);
+          }}
+        />
+      )}
+
+      {/* Admin Product Form Modal */}
+      <AnimatePresence>
+        {showAddForm && (
+          <ProductForm
+            product={editingProduct}
+            onClose={() => {
+              setShowAddForm(false);
+              setEditingProduct(null);
+            }}
+            onSuccess={async () => {
+              // Refresh products list after successful create/update
+              await fetchProducts();
+              setShowAddForm(false);
+              // Clear any selected product if editing
+              if (editingProduct) {
+                setSelectedProduct(null);
+                setShowProductDetail(false);
+              }
+              setEditingProduct(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal - Page Level */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setProductToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        productName={productToDelete?.name || 'this product'}
+      />
+
+      {/* Order Form Modal - Page Level, Centered on Background */}
+      {showOrderForm && productToOrder && (
+        <OrderForm
+          product={productToOrder}
+          onClose={() => {
+            setShowOrderForm(false);
+            setProductToOrder(null);
+          }}
+          onOrder={(orderData) => {
+            // Order form handles WhatsApp opening
+            setShowOrderForm(false);
+            setProductToOrder(null);
+          }}
+        />
+      )}
+
+      <Footer />
+    </div>
+  );
+}
+
+// ProductForm component (keeping existing implementation)
+function ProductForm({ product, onClose, onSuccess }) {
+  const [formData, setFormData] = useState({
+    name: product?.name || '',
+    description: product?.description || '',
+    price: product?.price || '',
+    category: product?.category || 'Home Decor',
+    images: product?.images || [],
+  });
+  const [files, setFiles] = useState([]);
+  const [filePreviews, setFilePreviews] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
+  const [success, setSuccess] = useState(false);
+
+  // Prevent body scroll when form is open
+  useEffect(() => {
+    document.body.classList.add('modal-open');
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, []);
+
+  // Update form data when product changes (for editing)
+  useEffect(() => {
+    if (product) {
+      setFormData({
+        name: product.name || '',
+        description: product.description || '',
+        price: product.price || '',
+        category: product.category || 'Home Decor',
+        images: product.images || [],
+      });
+      setFiles([]);
+      setFilePreviews([]);
+    } else {
+      // Reset form for new product
+      setFormData({
+        name: '',
+        description: '',
+        price: '',
+        category: 'Home Decor',
+        images: [],
+      });
+      setFiles([]);
+      setFilePreviews([]);
+    }
+  }, [product]);
+
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach(preview => URL.revokeObjectURL(preview));
+    };
+  }, [filePreviews]);
+
+  // Cleanup function for form reset
+  const handleClose = () => {
+    // Cleanup file previews
+    filePreviews.forEach(preview => URL.revokeObjectURL(preview));
+    // Reset form state
+    setError('');
+    setSuccess(false);
+    setValidationErrors({});
+    setFiles([]);
+    setFilePreviews([]);
+    onClose();
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!formData.name || formData.name.trim().length < 3) {
+      errors.name = 'Product name must be at least 3 characters';
+    }
+    
+    if (!formData.description || formData.description.trim().length < 10) {
+      errors.description = 'Description must be at least 10 characters';
+    }
+    
+    if (!formData.price || Number(formData.price) <= 0) {
+      errors.price = 'Price must be greater than 0';
+    }
+    
+    if (!formData.category) {
+      errors.category = 'Please select a category';
+    }
+    
+    // Validate files if any are selected
+    if (files.length > 0) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      
+      const invalidFiles = [];
+      files.forEach(file => {
+        if (!allowedTypes.includes(file.type)) {
+          invalidFiles.push(`${file.name} has an unsupported type. Only JPG, PNG, WEBP, GIF are allowed.`);
+        }
+        if (file.size > maxSize) {
+          invalidFiles.push(`${file.name} is too large (max 50MB)`);
+        }
+      });
+      
+      if (invalidFiles.length > 0) {
+        errors.images = invalidFiles.join(', ');
+      }
+    } else if (formData.images.length === 0) {
+      errors.images = 'Please upload at least one image';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setValidationErrors({});
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setUploading(true);
+
+    try {
+      let imageUrls = [...formData.images];
+
+      if (files.length > 0) {
+        const formDataToUpload = new FormData();
+        files.forEach((file) => {
+          formDataToUpload.append('images', file);
+        });
+
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataToUpload,
+        });
+
+        const uploadData = await uploadRes.json();
+        if (uploadRes.ok) {
+          // API returns { urls: [...] } - handle both formats for compatibility
+          const uploadedUrls = uploadData.urls || uploadData.url || [];
+          if (Array.isArray(uploadedUrls) && uploadedUrls.length > 0) {
+            imageUrls = [...imageUrls, ...uploadedUrls];
+          } else {
+            throw new Error('No image URLs returned from upload');
+          }
+        } else {
+          throw new Error(uploadData.error || 'Upload failed. Please try again.');
+        }
+      }
+
+      const productData = {
+        ...formData,
+        price: Number(formData.price),
+        images: imageUrls,
+      };
+
+      const url = product ? `/api/products/${product._id}` : '/api/products';
+      const method = product ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(true);
+        setError(''); // Clear any previous errors
+        setValidationErrors({}); // Clear validation errors
+        // Cleanup file previews
+        filePreviews.forEach(preview => URL.revokeObjectURL(preview));
+        setFiles([]);
+        setFilePreviews([]);
+        
+        // Call onSuccess after a short delay to show success message
+        setTimeout(() => {
+          onSuccess();
+        }, 1000);
+      } else {
+        const errorMsg = data.error || 'Failed to save product';
+        setError(errorMsg);
+        setUploading(false);
+        // Scroll to error message
+        setTimeout(() => {
+          const errorElement = document.querySelector('.error-message');
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      const errorMsg = error.message || 'An error occurred. Please check your connection and try again.';
+      setError(errorMsg);
+      setUploading(false);
+      // Scroll to error message
+      setTimeout(() => {
+        const errorElement = document.querySelector('.error-message');
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={handleClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={motionConfig.arrive}
+        onClick={(e) => e.stopPropagation()}
+        className="glass rounded-3xl shadow-deep w-full max-w-2xl bg-white flex flex-col"
+        style={{ 
+          maxHeight: '90vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
+        {/* Header - Fixed */}
+        <div className="flex-shrink-0 p-6 sm:p-10 pb-4 border-b border-gray-100">
+          <div className="flex justify-between items-center">
+            <h2 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent font-serif">
+              {product ? 'Edit Product' : 'Add New Product'}
+            </h2>
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600 text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100/50 transition-colors flex-shrink-0"
+            >
+              ×
+            </motion.button>
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div 
+          className="flex-1 overflow-y-auto form-scroll-container p-6 sm:p-10 pt-6" 
+          style={{ 
+            WebkitOverflowScrolling: 'touch',
+            minHeight: 0
+          }}
+        >
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 font-light">
+                Product Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  if (validationErrors.name) {
+                    setValidationErrors({ ...validationErrors, name: '' });
+                  }
+                }}
+                required
+                className={`w-full px-5 py-3.5 border rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white text-gray-900 font-light placeholder:text-gray-400 ${
+                  validationErrors.name ? 'border-red-500' : 'border-gray-200'
+                }`}
+                placeholder="Enter product name"
+              />
+              {validationErrors.name && (
+                <p className="text-red-500 text-sm mt-1">{validationErrors.name}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 font-light">
+                Description <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => {
+                  setFormData({ ...formData, description: e.target.value });
+                  if (validationErrors.description) {
+                    setValidationErrors({ ...validationErrors, description: '' });
+                  }
+                }}
+                required
+                rows="4"
+                className={`w-full px-5 py-3.5 border rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white text-gray-900 font-light placeholder:text-gray-400 ${
+                  validationErrors.description ? 'border-red-500' : 'border-gray-200'
+                }`}
+                placeholder="Describe your product..."
+              />
+              {validationErrors.description && (
+                <p className="text-red-500 text-sm mt-1">{validationErrors.description}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 font-light">
+                  Price (₹) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => {
+                    setFormData({ ...formData, price: e.target.value });
+                    if (validationErrors.price) {
+                      setValidationErrors({ ...validationErrors, price: '' });
+                    }
+                  }}
+                  required
+                  min="0"
+                  step="0.01"
+                  className={`w-full px-5 py-3.5 border rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white text-gray-900 font-light placeholder:text-gray-400 ${
+                    validationErrors.price ? 'border-red-500' : 'border-gray-200'
+                  }`}
+                  placeholder="0.00"
+                />
+                {validationErrors.price && (
+                  <p className="text-red-500 text-sm mt-1">{validationErrors.price}</p>
                 )}
               </div>
 
-              {loading ? (
-                <div className="text-center py-16 sm:py-24 md:py-32">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                    className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-pink-600 border-t-transparent rounded-full mx-auto mb-4"
-                  />
-                  <p className="text-gray-600 text-lg font-light">Loading beautiful creations...</p>
-                </div>
-              ) : filteredProducts.length === 0 ? (
-                <div className="text-center py-16 sm:py-24 md:py-32 glass rounded-3xl p-8 sm:p-12 md:p-16 max-w-md mx-auto">
-                  <div className="mb-4 flex justify-center">
-                    <YarnIcon className="text-gray-400" size={80} />
-                  </div>
-                  <p className="text-gray-700 text-lg sm:text-xl font-light mb-4">
-                    {selectedCategory ? `No products found in ${selectedCategory}.` : 'No products available yet.'}
-                  </p>
-                  {selectedCategory && (
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setSelectedCategory(null)}
-                      className="mt-4 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full font-medium hover:shadow-lg transition-all"
-                    >
-                      View All Products
-                    </motion.button>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 md:gap-10 lg:gap-12">
-                  {filteredProducts.map((product, index) => (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 font-light">
+                  Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => {
+                    setFormData({ ...formData, category: e.target.value });
+                    if (validationErrors.category) {
+                      setValidationErrors({ ...validationErrors, category: '' });
+                    }
+                  }}
+                  required
+                  className={`w-full px-5 py-3.5 border rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white text-gray-900 font-light ${
+                    validationErrors.category ? 'border-red-500' : 'border-gray-200'
+                  }`}
+                >
+                  <option value="Home Decor">Home Decor</option>
+                  <option value="Hair Accessories">Hair Accessories</option>
+                  <option value="Gift Articles">Gift Articles</option>
+                  <option value="Others">Others</option>
+                </select>
+                {validationErrors.category && (
+                  <p className="text-red-500 text-sm mt-1">{validationErrors.category}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 font-light">
+                Images <span className="text-red-500">*</span> {product && '(Add more images)'}
+              </label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => {
+                  const selectedFiles = Array.from(e.target.files);
+                  
+                  // Validate file types and sizes
+                  const validFiles = [];
+                  const invalidFiles = [];
+                  
+                  selectedFiles.forEach(file => {
+                    // Check file type
+                    if (!file.type.startsWith('image/')) {
+                      invalidFiles.push(`${file.name} is not an image file`);
+                      return;
+                    }
+                    
+                    // Check file size (max 50MB)
+                    const maxSize = 50 * 1024 * 1024; // 50MB
+                    if (file.size > maxSize) {
+                      invalidFiles.push(`${file.name} is too large (max 50MB)`);
+                      return;
+                    }
+                    
+                    validFiles.push(file);
+                  });
+                  
+                  if (invalidFiles.length > 0) {
+                    setError(`Invalid files: ${invalidFiles.join(', ')}`);
+                  } else {
+                    setError(''); // Clear error if all files are valid
+                  }
+                  
+                  setFiles(validFiles);
+                  
+                  const previews = validFiles.map(file => URL.createObjectURL(file));
+                  setFilePreviews(previews);
+                  
+                  if (validationErrors.images) {
+                    setValidationErrors({ ...validationErrors, images: '' });
+                  }
+                }}
+                className={`w-full px-5 py-3.5 border rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white text-gray-900 font-light text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 ${
+                  validationErrors.images ? 'border-red-500' : 'border-gray-200'
+                }`}
+              />
+              {filePreviews.length > 0 && (
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  {filePreviews.map((preview, index) => (
                     <motion.div
-                      key={product._id}
-                      initial={{ opacity: 0, y: 60 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: '-100px' }}
-                      transition={{ ...motionConfig.arrive, delay: index * 0.08 }}
+                      key={index}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={motionConfig.arrive}
+                      className="relative h-24 bg-gray-100 rounded-xl overflow-hidden group"
                     >
-                      <ProductCard product={product} />
+                      <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => {
+                          const newFiles = files.filter((_, i) => i !== index);
+                          const newPreviews = filePreviews.filter((_, i) => i !== index);
+                          setFiles(newFiles);
+                          setFilePreviews(newPreviews);
+                        }}
+                        className="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-lg"
+                        title="Remove image"
+                      >
+                        <span className="text-xs font-bold">×</span>
+                      </motion.button>
+                      <div className="absolute bottom-1 left-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-xs font-medium backdrop-blur-sm">
+                        New
+                      </div>
                     </motion.div>
                   ))}
                 </div>
               )}
-            </motion.div>
-          </div>
-        </section>
-      </main>
+              {validationErrors.images && (
+                <p className="text-red-500 text-sm mt-1">{validationErrors.images}</p>
+              )}
+              {formData.images.length > 0 && (
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  {formData.images.map((url, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={motionConfig.arrive}
+                      className="relative h-24 bg-gray-100 rounded-xl overflow-hidden group"
+                    >
+                      <Image src={url} alt={`Image ${index + 1}`} fill className="object-cover" />
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => {
+                          const newImages = formData.images.filter((_, i) => i !== index);
+                          setFormData({ ...formData, images: newImages });
+                        }}
+                        className="absolute top-1 right-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-lg"
+                        title="Remove image"
+                      >
+                        <span className="text-xs font-bold">×</span>
+                      </motion.button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-      <Footer />
-    </div>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="error-message bg-red-50 border-2 border-red-200 text-red-700 px-5 py-3.5 rounded-xl text-sm font-light"
+              >
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <strong className="font-semibold">Error:</strong> {error}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {success && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-green-50 border-2 border-green-200 text-green-700 px-5 py-3.5 rounded-xl text-sm text-center font-light"
+              >
+                ✓ Product saved successfully!
+              </motion.div>
+            )}
+
+            <div className="flex gap-4 pt-4">
+              <motion.button
+                type="submit"
+                disabled={uploading}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-medium py-3.5 px-4 rounded-xl transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-medium hover:shadow-deep"
+              >
+                {uploading ? 'Saving...' : product ? 'Update Product' : 'Add Product'}
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={handleClose}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3.5 px-4 rounded-xl transition-all duration-500"
+              >
+                Cancel
+              </motion.button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -11,10 +11,11 @@ export default function Badge({
   delay = 0
 }) {
   const variants = {
-    default: 'bg-gradient-to-br from-pink-100 to-purple-100 text-pink-800 border-2 border-pink-300',
-    handmade: 'bg-gradient-to-br from-orange-100 to-red-100 text-orange-800 border-2 border-orange-300',
-    gift: 'bg-gradient-to-br from-green-100 to-emerald-100 text-green-800 border-2 border-green-300',
-    love: 'bg-gradient-to-br from-pink-100 to-rose-100 text-rose-800 border-2 border-rose-300',
+    default: 'bg-gradient-to-br from-pink-50 via-purple-50 to-pink-50 text-pink-700 border-2 border-pink-200/60 shadow-sm',
+    handmade: 'bg-gradient-to-br from-orange-50 via-amber-50 to-orange-50 text-orange-700 border-2 border-orange-200/60 shadow-sm',
+    gift: 'bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-50 text-emerald-700 border-2 border-emerald-200/60 shadow-sm',
+    love: 'bg-gradient-to-br from-rose-50 via-pink-50 to-rose-50 text-rose-700 border-2 border-rose-200/60 shadow-sm',
+    sustainable: 'bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-50 text-amber-700 border-2 border-amber-200/60 shadow-sm',
   };
 
   return (
@@ -23,7 +24,7 @@ export default function Badge({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       whileHover={{ scale: 1.05, y: -2 }}
       transition={{ ...motionConfig.arrive, delay }}
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${variants[variant]} ${className} font-medium text-sm shadow-md`}
+      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${variants[variant]} ${className} font-medium text-sm backdrop-blur-sm`}
     >
       {icon && <span className="flex items-center justify-center">{icon}</span>}
       <span className="handwritten font-bold">{text}</span>

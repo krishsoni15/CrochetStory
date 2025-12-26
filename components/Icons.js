@@ -273,3 +273,105 @@ export function TruckIcon({ className = '', size = 24 }) {
   );
 }
 
+export function AdminIcon({ className = '', size = 24, animated = false }) {
+  const icon = (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      width={size}
+      height={size}
+    >
+      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" fill="none" />
+      <path
+        d="M6 21C6 17 8.5 14 12 14C15.5 14 18 17 18 21"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      <path
+        d="M19 3L21 5L19 7M5 3L3 5L5 7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+
+  if (animated) {
+    return (
+      <motion.div
+        animate={{ scale: [1, 1.05, 1], rotate: [0, 2, 0] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        className="inline-block"
+      >
+        {icon}
+      </motion.div>
+    );
+  }
+
+  return icon;
+}
+
+export function EditIcon({ className = '', size = 24 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      width={size}
+      height={size}
+    >
+      <path
+        d="M11 4H4C3.4 4 3 4.4 3 5V20C3 20.6 3.4 21 4 21H19C19.6 21 20 20.6 20 20V13"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M18.5 2.5C18.9 2.1 19.5 2.1 19.9 2.5L21.5 4.1C21.9 4.5 21.9 5.1 21.5 5.5L12.5 14.5L9 15L9.5 11.5L18.5 2.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function DeleteIcon({ className = '', size = 24 }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      width={size}
+      height={size}
+    >
+      <path
+        d="M3 6H5H21"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M8 6V4C8 3.4 8.4 3 9 3H15C15.6 3 16 3.4 16 4V6M19 6V20C19 20.6 18.6 21 18 21H6C5.4 21 5 20.6 5 20V6H19Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 11V17M14 11V17"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+

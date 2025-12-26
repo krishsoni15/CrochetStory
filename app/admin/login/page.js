@@ -1,16 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { motionConfig } from '../../../lib/motion';
+import CustomLoader from '../../../components/CustomLoader';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const router = useRouter();
+
+  // Check if already logged in (has valid 30-day session)
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/status', {
+          credentials: 'include',
+        });
+        const data = await res.json();
+        
+        if (data.isAdmin) {
+          // Already logged in - redirect to dashboard
+          window.location.href = '/admin/dashboard';
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,7 +55,8 @@ export default function AdminLogin() {
       const data = await res.json();
 
       if (res.ok) {
-        router.push('/admin/dashboard');
+        // Force a full page reload to ensure cookie is read and navbar updates
+        window.location.href = '/';
       } else {
         setError(data.error || 'Invalid credentials');
       }
@@ -40,6 +67,14 @@ export default function AdminLogin() {
     }
   };
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50/50 via-purple-50/30 to-orange-50/50">
+        <CustomLoader size="default" text="Checking authentication..." />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50/50 via-purple-50/30 to-orange-50/50 relative overflow-hidden">
       <div className="absolute inset-0 grain" />
@@ -49,14 +84,32 @@ export default function AdminLogin() {
         transition={motionConfig.slow}
         className="glass rounded-3xl shadow-deep p-12 w-full max-w-md relative z-10"
       >
-        <motion.h1
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...motionConfig.arrive, delay: 0.2 }}
-          className="text-5xl font-bold text-center bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-10 font-serif"
-        >
-          Admin Login
-        </motion.h1>
+        <div className="flex items-center justify-between mb-10">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...motionConfig.arrive, delay: 0.1 }}
+          >
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-300 font-light"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>Back</span>
+            </Link>
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...motionConfig.arrive, delay: 0.2 }}
+            className="text-5xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent font-serif flex-1 text-center"
+          >
+            Admin Login
+          </motion.h1>
+          <div className="w-20" /> {/* Spacer for centering */}
+        </div>
         <form onSubmit={handleSubmit} className="space-y-6">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -72,7 +125,7 @@ export default function AdminLogin() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full px-5 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white/80 backdrop-blur-sm font-light"
+              className="w-full px-5 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white text-gray-900 font-light placeholder:text-gray-400"
             />
           </motion.div>
           <motion.div
@@ -89,7 +142,7 @@ export default function AdminLogin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-5 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white/80 backdrop-blur-sm font-light"
+              className="w-full px-5 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white text-gray-900 font-light placeholder:text-gray-400"
             />
           </motion.div>
           {error && (

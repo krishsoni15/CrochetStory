@@ -8,7 +8,7 @@ import MemoryCallback from './MemoryCallback';
 
 export default function Footer() {
   return (
-    <footer className="relative mt-20 sm:mt-32 md:mt-40 bg-gradient-to-b from-pink-50/50 via-purple-50/30 to-orange-50/50 border-t border-pink-200/30">
+    <footer className="relative mt-8 sm:mt-10 md:mt-12 bg-gradient-to-b from-pink-50/50 via-purple-50/30 to-orange-50/50 border-t border-pink-200/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-12 md:gap-16">
           <motion.div

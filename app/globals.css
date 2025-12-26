@@ -50,7 +50,94 @@
   }
   
   html {
-    scroll-behavior: smooth;
+    scroll-behavior: auto; /* Let Lenis handle smooth scrolling */
+  }
+
+  /* Hide scrollbar for horizontal scroll */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    outline: 2px solid rgb(236, 72, 153);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Skip to main content link */
+  .skip-to-main {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: rgb(236, 72, 153);
+    color: white;
+    padding: 8px 16px;
+    text-decoration: none;
+    z-index: 100;
+    border-radius: 4px;
+  }
+
+  .skip-to-main:focus {
+    top: 0;
+  }
+
+  /* Custom Scrollbar - Full Site */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(249, 250, 251, 0.5);
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgb(236, 72, 153), rgb(168, 85, 247));
+    border-radius: 10px;
+    border: 2px solid rgba(249, 250, 251, 0.5);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgb(219, 39, 119), rgb(147, 51, 234));
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(236, 72, 153) rgba(249, 250, 251, 0.5);
+  }
+
+  /* Prevent body scroll when modal is open */
+  body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+
+  /* Custom scrollbar for form modals */
+  .form-scroll-container::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .form-scroll-container::-webkit-scrollbar-track {
+    background: rgba(249, 250, 251, 0.5);
+    border-radius: 10px;
+  }
+
+  .form-scroll-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgb(236, 72, 153), rgb(168, 85, 247));
+    border-radius: 10px;
+  }
+
+  .form-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgb(219, 39, 119), rgb(147, 51, 234));
   }
   
   @media (prefers-reduced-motion: reduce) {
@@ -60,6 +147,11 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    
+    /* Disable Lenis smooth scroll for reduced motion */
+    html.lenis {
       scroll-behavior: auto !important;
     }
   }
@@ -101,20 +193,33 @@
     height: auto;
   }
   
-  .lenis.lenis-smooth {
+  html.lenis.lenis-smooth {
     scroll-behavior: auto !important;
   }
   
-  .lenis.lenis-smooth [data-lenis-prevent] {
+  html.lenis.lenis-smooth [data-lenis-prevent] {
     overscroll-behavior: contain;
   }
   
-  .lenis.lenis-stopped {
+  html.lenis.lenis-stopped {
     overflow: hidden;
   }
   
-  .lenis.lenis-scrolling iframe {
+  html.lenis.lenis-scrolling iframe {
     pointer-events: none;
+  }
+  
+  /* Fix scroll bugs on mobile */
+  @media (max-width: 768px) {
+    html.lenis {
+      touch-action: pan-y;
+    }
+  }
+  
+  /* Prevent scroll jank */
+  body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
 }
 

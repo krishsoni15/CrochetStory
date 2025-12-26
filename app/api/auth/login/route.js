@@ -3,6 +3,10 @@ import dbConnect from '../../../../lib/db';
 import Admin from '../../../../models/Admin';
 import { comparePassword, generateToken } from '../../../../lib/auth';
 
+// Force dynamic rendering for this route (uses cookies)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(request) {
   try {
     await dbConnect();
@@ -34,18 +38,24 @@ export async function POST(request) {
       );
     }
 
+    // Generate JWT token with 30-day expiration
     const token = generateToken({ id: admin._id, username: admin.username });
 
     const response = NextResponse.json(
-      { message: 'Login successful' },
+      { message: 'Login successful. Session will last for 30 days.' },
       { status: 200 }
     );
 
+    // Set cookie for 30 days (30 * 24 * 60 * 60 seconds)
+    // This creates a persistent session - admin won't need to login again for 30 days
+    const thirtyDaysInSeconds = 60 * 60 * 24 * 30;
+    
     response.cookies.set('adminToken', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
+      httpOnly: true, // Prevents XSS attacks
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: 'lax', // CSRF protection
+      maxAge: thirtyDaysInSeconds, // 30 days
+      path: '/', // Available site-wide
     });
 
     return response;

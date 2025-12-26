@@ -5,6 +5,10 @@ import { tmpdir } from 'os';
 import cloudinary from '../../../lib/cloudinary';
 import { verifyToken } from '../../../lib/auth';
 
+// Force dynamic rendering for this route (uses file system and cookies)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 async function isAuthenticated(request) {
   const token = request.cookies.get('adminToken')?.value;
   if (!token) return false;
@@ -61,11 +65,19 @@ export async function POST(request) {
 
     const urls = await Promise.all(uploadPromises);
 
+    if (!urls || urls.length === 0) {
+      return NextResponse.json(
+        { error: 'No images were uploaded successfully' },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json({ urls });
   } catch (error) {
     console.error('Upload error:', error);
+    const errorMessage = error.message || 'Failed to upload images. Please check your Cloudinary configuration.';
     return NextResponse.json(
-      { error: 'Failed to upload images' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
