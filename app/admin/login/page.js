@@ -56,7 +56,7 @@ export default function AdminLogin() {
 
       if (res.ok) {
         // Force a full page reload to ensure cookie is read and navbar updates
-        window.location.href = '/';
+        window.location.href = '/products';
       } else {
         setError(data.error || 'Invalid credentials');
       }

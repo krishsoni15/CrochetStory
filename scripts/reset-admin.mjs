@@ -1,5 +1,28 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Load environment variables from .env.local
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const envPath = join(__dirname, '..', '.env.local');
+
+try {
+  const envFile = readFileSync(envPath, 'utf8');
+  envFile.split('\n').forEach(line => {
+    const [key, ...valueParts] = line.split('=');
+    if (key && valueParts.length > 0) {
+      const value = valueParts.join('=').trim().replace(/^["']|["']$/g, '');
+      if (!process.env[key.trim()]) {
+        process.env[key.trim()] = value;
+      }
+    }
+  });
+} catch (error) {
+  // .env.local might not exist, that's okay
+}
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -25,44 +48,38 @@ const AdminSchema = new mongoose.Schema({
 
 const Admin = mongoose.models.Admin || mongoose.model('Admin', AdminSchema);
 
-async function initAdmin() {
+async function resetAdmin() {
   try {
     console.log('Connecting to MongoDB...');
     await mongoose.connect(MONGODB_URI);
     console.log('✓ Connected to MongoDB');
     
-    const username = process.argv[2] || 'admin';
-    const password = process.argv[3] || 'Admin@2006';
-
-    const existingAdmin = await Admin.findOne({ username });
-    if (existingAdmin) {
-      console.log('⚠ Admin already exists!');
-      console.log(`Username: ${username}`);
-      console.log('If you want to change the password, delete the admin first.');
-      process.exit(0);
-    }
-
-    console.log('Creating admin user...');
+    // Delete all existing admin users
+    console.log('Deleting all existing admin users...');
+    const deleteResult = await Admin.deleteMany({});
+    console.log(`✓ Deleted ${deleteResult.deletedCount} admin user(s)`);
+    
+    // Create new admin with username "admin" and password "Admin@2006"
+    const username = 'admin';
+    const password = 'Admin@2006';
+    
+    console.log('Creating new admin user...');
     const passwordHash = await bcrypt.hash(password, 10);
     await Admin.create({ username, passwordHash });
 
-    console.log('✓ Admin created successfully!');
+    console.log('✓ Admin reset successfully!');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`Username: ${username}`);
     console.log(`Password: ${password}`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('\n⚠ IMPORTANT: Change the default password after first login!');
     process.exit(0);
   } catch (error) {
-    console.error('✗ Error creating admin:', error.message);
-    if (error.code === 11000) {
-      console.error('Username already exists. Please choose a different username.');
-    }
+    console.error('✗ Error resetting admin:', error.message);
     process.exit(1);
   } finally {
     await mongoose.connection.close();
   }
 }
 
-initAdmin();
+resetAdmin();
 

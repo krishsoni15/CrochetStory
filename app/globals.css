@@ -119,9 +119,29 @@
     overflow: hidden;
     position: fixed;
     width: 100%;
+    height: 100%;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+  
+  /* Ensure form scrolling works inside modal */
+  body.modal-open .form-scroll-container {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
   }
 
-  /* Custom scrollbar for form modals */
+  /* Custom scrollbar for form modals - Smooth Scrolling */
+  .form-scroll-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(236, 72, 153) rgba(249, 250, 251, 0.5);
+  }
+
   .form-scroll-container::-webkit-scrollbar {
     width: 8px;
   }
@@ -134,6 +154,7 @@
   .form-scroll-container::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, rgb(236, 72, 153), rgb(168, 85, 247));
     border-radius: 10px;
+    transition: background 0.2s ease;
   }
 
   .form-scroll-container::-webkit-scrollbar-thumb:hover {

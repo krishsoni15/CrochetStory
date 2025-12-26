@@ -7,11 +7,13 @@ import { usePathname } from 'next/navigation';
 import { motionConfig } from '../lib/motion';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import { useRouter } from 'next/navigation';
-import { AdminIcon } from './Icons';
+import { AdminIcon, MenuIcon, CloseIcon } from './Icons';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(0);
   const { isAdmin, username, checkAdminStatus } = useAdminAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -36,6 +38,24 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Handle window resize for responsive hamburger menu
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+      // Close mobile menu if window becomes larger than breakpoint
+      const breakpoint = isAdmin ? 500 : 370;
+      if (window.innerWidth > breakpoint) {
+        setShowMobileMenu(false);
+      }
+    };
+    
+    // Set initial width
+    setWindowWidth(window.innerWidth);
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isAdmin]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -72,6 +92,10 @@ export default function Navbar() {
   // Check if on home page
   const isHomePage = pathname === '/';
   
+  // Determine breakpoint based on admin status
+  const breakpoint = isAdmin ? 500 : 370;
+  const showHamburger = windowWidth > 0 && windowWidth <= breakpoint;
+  
   return (
     <motion.nav
       initial={{ y: -100, opacity: 0 }}
@@ -107,35 +131,57 @@ export default function Navbar() {
                 </Link>
               </motion.div>
           <div className="flex items-center space-x-4 sm:space-x-6 md:space-x-8">
-            {['Home', 'Products'].map((item, index) => {
-              const href = item === 'Home' ? '/' : `/${item.toLowerCase()}`;
-              const isActive = pathname === href || (item === 'Home' && pathname === '/') || (item === 'Products' && pathname.startsWith('/products'));
-              
-              return (
-                <motion.div
-                  key={item}
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...motionConfig.arrive, delay: 0.2 + index * 0.1 }}
-                >
-                  <Link
-                    href={href}
-                    className={`transition-colors duration-500 relative group text-base sm:text-lg font-light px-2 py-1 focus:outline-none ${
-                      isActive 
-                        ? 'text-pink-600' 
-                        : 'text-gray-800 hover:text-pink-600'
-                    }`}
-                  >
-                    {item}
-                    <span className={`absolute -bottom-1 left-0 h-0.5 transition-all duration-500 ${
-                      isActive 
-                        ? 'w-full bg-gradient-to-r from-pink-600 via-purple-600 to-pink-600'
-                        : 'w-0 group-hover:w-full bg-gradient-to-r from-pink-600 via-purple-600 to-pink-600'
-                    }`} />
-                  </Link>
-                </motion.div>
-              );
-            })}
+            {/* Desktop Navigation Links */}
+            {!showHamburger && (
+              <>
+                {['Home', 'Products'].map((item, index) => {
+                  const href = item === 'Home' ? '/' : `/${item.toLowerCase()}`;
+                  const isActive = pathname === href || (item === 'Home' && pathname === '/') || (item === 'Products' && pathname.startsWith('/products'));
+                  
+                  return (
+                    <motion.div
+                      key={item}
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ ...motionConfig.arrive, delay: 0.2 + index * 0.1 }}
+                    >
+                      <Link
+                        href={href}
+                        className={`transition-colors duration-500 relative group text-base sm:text-lg font-light px-2 py-1 focus:outline-none ${
+                          isActive 
+                            ? 'text-pink-600' 
+                            : 'text-gray-800 hover:text-pink-600'
+                        }`}
+                      >
+                        {item}
+                        <span className={`absolute -bottom-1 left-0 h-0.5 transition-all duration-500 ${
+                          isActive 
+                            ? 'w-full bg-gradient-to-r from-pink-600 via-purple-600 to-pink-600'
+                            : 'w-0 group-hover:w-full bg-gradient-to-r from-pink-600 via-purple-600 to-pink-600'
+                        }`} />
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Hamburger Menu Button */}
+            {showHamburger && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="p-2 text-gray-800 hover:text-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 rounded-lg transition-colors duration-300"
+                aria-label="Toggle menu"
+              >
+                {showMobileMenu ? (
+                  <CloseIcon className="w-6 h-6" size={24} />
+                ) : (
+                  <MenuIcon className="w-6 h-6" size={24} />
+                )}
+              </motion.button>
+            )}
             
             {isAdmin && (
               <motion.div
@@ -149,10 +195,10 @@ export default function Navbar() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="relative flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white px-4 py-2 rounded-full text-sm font-medium hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 transition-all duration-300"
+                  className="relative flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white px-2 sm:px-4 py-2 rounded-full text-sm font-medium hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 transition-all duration-300 w-10 h-10 sm:w-auto sm:h-auto"
                 >
-                  <AdminIcon className="w-4 h-4" size={16} animated={true} />
-                  <span>Admin Profile</span>
+                  <AdminIcon className="w-4 h-4 sm:w-4 sm:h-4" size={16} animated={true} />
+                  <span className="hidden sm:inline">Admin Profile</span>
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-pulse" />
                 </motion.button>
 
@@ -198,6 +244,47 @@ export default function Navbar() {
             )}
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {showMobileMenu && showHamburger && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden border-t border-gray-200/50 bg-white/98 backdrop-blur-md"
+            >
+              <div className="px-4 py-4 space-y-3">
+                {['Home', 'Products'].map((item, index) => {
+                  const href = item === 'Home' ? '/' : `/${item.toLowerCase()}`;
+                  const isActive = pathname === href || (item === 'Home' && pathname === '/') || (item === 'Products' && pathname.startsWith('/products'));
+                  
+                  return (
+                    <motion.div
+                      key={item}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <Link
+                        href={href}
+                        onClick={() => setShowMobileMenu(false)}
+                        className={`block px-4 py-3 rounded-lg transition-colors duration-300 text-base font-medium ${
+                          isActive 
+                            ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-md' 
+                            : 'text-gray-800 hover:bg-gray-100'
+                        }`}
+                      >
+                        {item}
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.nav>
   );

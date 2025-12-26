@@ -2,7 +2,6 @@ import './globals.css';
 import SmoothScrollProvider from '../components/SmoothScrollProvider';
 import CustomCursor from '../components/CustomCursor';
 import DelightMessage from '../components/DelightMessage';
-import ScrollController from '../components/ScrollController';
 import SecretInteraction from '../components/SecretInteraction';
 import ImageFix from '../components/ImageFix';
 
@@ -59,7 +58,6 @@ export default function RootLayout({ children }) {
         <ImageFix />
         <CustomCursor />
         <DelightMessage />
-        <ScrollController />
         <SecretInteraction />
         <SmoothScrollProvider>
           {children}

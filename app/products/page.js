@@ -83,7 +83,6 @@ export default function ProductsPage() {
       alert('Invalid product. Cannot edit.');
       return;
     }
-    console.log('Editing product:', product);
     setEditingProduct(product);
     setShowAddForm(true);
   };
@@ -129,27 +128,29 @@ export default function ProductsPage() {
           setShowProductDetail(false);
         }
         
-        // Close modal
+        // Close modal first
         setShowDeleteModal(false);
         setProductToDelete(null);
         
-        // Refresh to ensure consistency
-        await fetchProducts();
+        // Refresh to ensure consistency (don't await to close modal faster)
+        fetchProducts().catch(console.error);
       } else {
         const errorMsg = data.error || 'Failed to delete product. Please try again.';
         alert(errorMsg);
+        // Close modal on error too
         setShowDeleteModal(false);
         setProductToDelete(null);
         // Refresh products list on error to ensure consistency
-        await fetchProducts();
+        fetchProducts().catch(console.error);
       }
     } catch (error) {
       console.error('Error deleting product:', error);
       alert('An error occurred while deleting the product. Please check your connection and try again.');
+      // Close modal on error
       setShowDeleteModal(false);
       setProductToDelete(null);
       // Refresh products list on error
-      await fetchProducts();
+      fetchProducts().catch(console.error);
     }
   };
 
@@ -202,6 +203,49 @@ export default function ProductsPage() {
   // Check if there are more products to load
   const hasMore = displayedProducts.length < filteredAndSortedProducts.length;
 
+  // Auto-scroll animation on page load
+  useEffect(() => {
+    // Only auto-scroll if page is loaded and user is at the top
+    if (loading) return;
+    
+    // Check if user is already scrolled down (don't auto-scroll if they are)
+    if (window.pageYOffset > 50) return;
+    
+    // Wait for content to render, then scroll smoothly
+    const timer = setTimeout(() => {
+      const scrollAmount = window.innerWidth < 768 ? 80 : 100; // Subtle scroll amount
+      const startPosition = window.pageYOffset;
+      const targetPosition = startPosition + scrollAmount;
+      const distance = targetPosition - startPosition;
+      const duration = 1000; // 1 second smooth scroll
+      let startTime = null;
+
+      const easeInOutCubic = (t) => {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      };
+
+      const animateScroll = (currentTime) => {
+        if (startTime === null) startTime = currentTime;
+        const timeElapsed = currentTime - startTime;
+        const progress = Math.min(timeElapsed / duration, 1);
+        
+        const ease = easeInOutCubic(progress);
+        window.scrollTo({
+          top: startPosition + distance * ease,
+          behavior: 'auto' // We're handling the animation manually
+        });
+
+        if (progress < 1) {
+          requestAnimationFrame(animateScroll);
+        }
+      };
+
+      requestAnimationFrame(animateScroll);
+    }, 600); // Wait 600ms after page load
+
+    return () => clearTimeout(timer);
+  }, [loading]);
+
   // Infinite scroll handler
   useEffect(() => {
     const handleScroll = () => {
@@ -228,20 +272,30 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white relative">
-      <Navbar />
+      {!showAddForm && <Navbar />}
 
       {/* Hero Section - Elegant */}
-      <section className="pt-20 sm:pt-24 pb-4 sm:pb-5 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50/50 mt-20 sm:mt-24">
+      <section className="pt-24 sm:pt-28 md:pt-32 pb-6 sm:pb-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50/50">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2">
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-gray-900 mb-3 sm:mb-4"
+          >
             Explore Our{' '}
             <span className="bg-gradient-to-r from-pink-600 via-purple-600 to-orange-600 bg-clip-text text-transparent">
               Creations
             </span>
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600 font-light">
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="text-base sm:text-lg text-gray-600 font-light tracking-wide"
+          >
             Handcrafted with love and care
-          </p>
+          </motion.p>
         </div>
       </section>
 
@@ -251,8 +305,8 @@ export default function ProductsPage() {
       </a>
       <main id="main-content" className="flex-grow px-4 sm:px-6 lg:px-8 py-5 sm:py-7 bg-gradient-to-b from-gray-50 to-white" tabIndex={-1}>
         <div className="max-w-7xl mx-auto">
-          {/* Sort, Categories & Admin Controls - Fixed Sticky Bar */}
-          <div className="sticky top-20 sm:top-24 z-40 flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-5 sm:mb-7 gap-3 bg-white/95 backdrop-blur-xl rounded-2xl p-4 sm:p-5 shadow-lg border border-gray-200/50 transition-all duration-300">
+          {/* Sort, Categories & Admin Controls */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-5 sm:mb-7 gap-3 bg-white/95 backdrop-blur-xl rounded-2xl p-4 sm:p-5 shadow-lg border border-gray-200/50 transition-all duration-300">
             {/* Left Side: Sort & Categories */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 min-w-0">
               {/* Sort Dropdown */}
@@ -337,7 +391,7 @@ export default function ProductsPage() {
                 whileTap={{ scale: 0.95 }}
                 onClick={fetchProducts}
                 disabled={loading}
-                className="p-2.5 bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl transition-all disabled:opacity-50 hover:border-pink-300 hover:bg-gradient-to-br hover:from-pink-50 hover:to-purple-50 shadow-md hover:shadow-lg"
+                className="hidden sm:block p-2.5 bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl transition-all disabled:opacity-50 hover:border-pink-300 hover:bg-gradient-to-br hover:from-pink-50 hover:to-purple-50 shadow-md hover:shadow-lg"
                 title="Refresh"
                 aria-label="Refresh products"
               >
@@ -371,8 +425,8 @@ export default function ProductsPage() {
               <div className="flex justify-center py-8">
                 <CustomLoader size="large" text="Loading products..." />
               </div>
-              {/* Skeleton Loaders - Only 4 on one row */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+              {/* Skeleton Loaders */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                 {[...Array(4)].map((_, i) => (
                   <ProductSkeleton key={i} />
                 ))}
@@ -424,7 +478,7 @@ export default function ProductsPage() {
             </motion.div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                 {displayedProducts.map((product, index) => (
                   <motion.div
                     key={product._id || `product-${index}`}
@@ -437,8 +491,7 @@ export default function ProductsPage() {
                       ease: [0.25, 0.46, 0.45, 0.94]
                     }}
                     layout
-                    whileHover={{ y: -4 }}
-                    className="transition-all duration-300"
+                    className="transition-all duration-300 isolate"
                   >
                     <ProductCardShop
                       product={product}
@@ -771,7 +824,7 @@ function ProductForm({ product, onClose, onSuccess }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed top-0 left-0 right-0 bottom-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-30 p-4"
       onClick={handleClose}
     >
       <motion.div
@@ -783,37 +836,59 @@ function ProductForm({ product, onClose, onSuccess }) {
         className="glass rounded-3xl shadow-deep w-full max-w-2xl bg-white flex flex-col"
         style={{ 
           maxHeight: '90vh',
+          height: '90vh',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column'
         }}
       >
         {/* Header - Fixed */}
-        <div className="flex-shrink-0 p-6 sm:p-10 pb-4 border-b border-gray-100">
+        <div className="flex-shrink-0 p-4 sm:p-6 md:p-10 pb-4 border-b border-gray-100 relative">
           <div className="flex justify-between items-center">
-            <h2 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent font-serif">
+            <h2 className="text-xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent font-serif">
               {product ? 'Edit Product' : 'Add New Product'}
             </h2>
             <motion.button
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600 text-3xl w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100/50 transition-colors flex-shrink-0"
+              className="text-gray-400 hover:text-gray-600 text-2xl sm:text-3xl w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-gray-100/50 transition-colors flex-shrink-0"
             >
               ×
             </motion.button>
           </div>
         </div>
 
-        {/* Scrollable Content */}
+        {/* Sticky Close Button - Visible when scrolling on mobile */}
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={handleClose}
+          className="fixed top-4 right-4 sm:hidden z-40 w-10 h-10 bg-white/95 backdrop-blur-md rounded-full flex items-center justify-center shadow-xl text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all border border-gray-200/50"
+          aria-label="Close"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </motion.button>
+
+        {/* Scrollable Content - Smooth Scrolling */}
         <div 
           className="flex-1 overflow-y-auto form-scroll-container p-6 sm:p-10 pt-6" 
           style={{ 
             WebkitOverflowScrolling: 'touch',
-            minHeight: 0
+            minHeight: 0,
+            maxHeight: 'calc(90vh - 120px)',
+            scrollBehavior: 'smooth',
+            overscrollBehavior: 'contain',
+            willChange: 'scroll-position'
+          }}
+          onWheel={(e) => {
+            // Allow mouse wheel scrolling
+            e.stopPropagation();
           }}
         >
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6 pb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 font-light">
                 Product Name <span className="text-red-500">*</span>

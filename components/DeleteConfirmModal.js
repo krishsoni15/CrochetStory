@@ -1,9 +1,34 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { motionConfig } from '../lib/motion';
 
 export default function DeleteConfirmModal({ isOpen, onClose, onConfirm, productName }) {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Reset loading state when modal opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsDeleting(false);
+    }
+  }, [isOpen]);
+
+  const handleConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      await onConfirm();
+      // Modal will be closed by parent component after successful deletion
+      // Reset loading state in case modal doesn't close immediately
+      setTimeout(() => {
+        setIsDeleting(false);
+      }, 500);
+    } catch (error) {
+      console.error('Error in delete confirmation:', error);
+      setIsDeleting(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -12,7 +37,7 @@ export default function DeleteConfirmModal({ isOpen, onClose, onConfirm, product
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/60 backdrop-blur-md z-30 flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -73,19 +98,32 @@ export default function DeleteConfirmModal({ isOpen, onClose, onConfirm, product
             >
               <motion.button
                 onClick={onClose}
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 border-2 border-gray-200 hover:border-gray-300 text-gray-800 font-semibold py-3.5 px-4 rounded-xl transition-all duration-300"
+                disabled={isDeleting}
+                whileHover={!isDeleting ? { scale: 1.02, y: -2 } : {}}
+                whileTap={!isDeleting ? { scale: 0.98 } : {}}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 border-2 border-gray-200 hover:border-gray-300 text-gray-800 font-semibold py-3.5 px-4 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </motion.button>
               <motion.button
-                onClick={onConfirm}
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3.5 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-red-500/30"
+                onClick={handleConfirm}
+                disabled={isDeleting}
+                whileHover={!isDeleting ? { scale: 1.02, y: -2 } : {}}
+                whileTap={!isDeleting ? { scale: 0.98 } : {}}
+                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3.5 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-red-500/30 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Delete
+                {isDeleting ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                    />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  'Delete'
+                )}
               </motion.button>
             </motion.div>
           </div>

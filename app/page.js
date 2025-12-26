@@ -19,7 +19,6 @@ import { HeartIcon, SparkleIcon, YarnIcon, GiftIcon } from '../components/Icons'
 import Image from 'next/image';
 import MemoryCallback from '../components/MemoryCallback';
 import BreathingCard from '../components/BreathingCard';
-import { useAttentionFlow } from '../hooks/useAttentionFlow';
 import { useMicroRewards } from '../hooks/useMicroRewards';
 import MicroReward from '../components/MicroReward';
 import BackgroundImage from '../components/BackgroundImage';
