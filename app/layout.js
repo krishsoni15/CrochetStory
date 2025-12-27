@@ -13,17 +13,6 @@ export const metadata = {
     default: 'CrochetStory - Handmade Crochet Products | Premium Quality',
     template: '%s | CrochetStory'
   },
-  icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/images/heart.png', sizes: '32x32', type: 'image/png' },
-      { url: '/images/heart.png', sizes: '16x16', type: 'image/png' }
-    ],
-    apple: [
-      { url: '/images/heart.png', sizes: '180x180', type: 'image/png' }
-    ],
-    shortcut: '/images/heart.png'
-  },
   description: 'Discover beautiful handmade crochet products crafted with love. Shop premium crochet items including home decor, hair accessories, and gift articles. Customizable designs, eco-friendly materials, and affordable prices. Made in Ahmedabad, India.',
   keywords: [
     'crochet products',
@@ -83,11 +72,25 @@ export const metadata = {
   },
   category: 'E-commerce',
   classification: 'Handmade Crochet Products',
+  icons: {
+    icon: [
+      {
+        url: '/images/heart.png',
+        sizes: 'any',
+        type: 'image/png',
+      },
+    ],
+    shortcut: '/images/heart.png',
+  },
 };
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="lenis lenis-smooth">
       <head>
+        {/* Favicon */}
+        <link rel="icon" href="/images/heart.png" type="image/png" sizes="any" />
+        <link rel="apple-touch-icon" href="/images/heart.png" />
+        <link rel="shortcut icon" href="/images/heart.png" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
