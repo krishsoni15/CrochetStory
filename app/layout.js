@@ -13,6 +13,17 @@ export const metadata = {
     default: 'CrochetStory - Handmade Crochet Products | Premium Quality',
     template: '%s | CrochetStory'
   },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/images/heart.png', sizes: '32x32', type: 'image/png' },
+      { url: '/images/heart.png', sizes: '16x16', type: 'image/png' }
+    ],
+    apple: [
+      { url: '/images/heart.png', sizes: '180x180', type: 'image/png' }
+    ],
+    shortcut: '/images/heart.png'
+  },
   description: 'Discover beautiful handmade crochet products crafted with love. Shop premium crochet items including home decor, hair accessories, and gift articles. Customizable designs, eco-friendly materials, and affordable prices. Made in Ahmedabad, India.',
   keywords: [
     'crochet products',
