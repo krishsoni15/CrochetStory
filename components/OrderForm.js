@@ -111,7 +111,7 @@ export default function OrderForm({ product, onClose, onOrder }) {
       `PRODUCT DETAILS\n` +
       `Product Name: ${product.name}\n` +
       `Category: ${product.category || 'Not specified'}\n` +
-      `Price: ₹${product.price}\n` +
+      `Price: ₹${product.offer && Number(product.offer) > 0 ? ((Number(product.price) || 0) * (1 - Number(product.offer) / 100)).toFixed(2) : (Number(product.price) || 0)}${product.offer && Number(product.offer) > 0 ? ` (${Math.round(Number(product.offer))}% OFF - Original: ₹${Number(product.price) || 0})` : ''}\n` +
       (product.description ? `Description: ${product.description}\n` : '') +
       (productImageUrl ? `Product Image: ${productImageUrl}\n` : '') +
       `\nCUSTOMER INFORMATION\n` +
@@ -168,7 +168,7 @@ export default function OrderForm({ product, onClose, onOrder }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[110] overflow-y-auto"
+        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[9998] overflow-y-auto"
         onClick={onClose}
         style={{ touchAction: 'pan-y' }}
       >
@@ -230,7 +230,15 @@ export default function OrderForm({ product, onClose, onOrder }) {
                     <p className="text-xs text-gray-500 mb-2 font-light">{product.category}</p>
                   )}
                   <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                    ₹{product.price}
+                    {product.offer && Number(product.offer) > 0 ? (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span>₹{((Number(product.price) || 0) * (1 - Number(product.offer) / 100)).toFixed(2)}</span>
+                        <span className="text-sm text-gray-400 line-through">₹{Number(product.price) || 0}</span>
+                        <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">{Math.round(Number(product.offer))}% OFF</span>
+                      </div>
+                    ) : (
+                      <span>₹{Number(product.price) || 0}</span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -339,6 +347,15 @@ export default function OrderForm({ product, onClose, onOrder }) {
                         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
                       </svg>
                       <span>Order via WhatsApp</span>
+                      <motion.span
+                        className="inline-flex items-center"
+                        whileHover={{ x: 3 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </motion.span>
                     </>
                   )}
                 </motion.button>

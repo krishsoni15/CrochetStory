@@ -409,6 +409,7 @@ function ProductForm({ product, onClose, onSuccess }) {
     name: product?.name || '',
     description: product?.description || '',
     price: product?.price || '',
+    offer: (product?.offer !== undefined && product?.offer !== null) ? Number(product.offer) : 0,
     category: product?.category || 'Home Decor',
     images: product?.images || [],
   });
@@ -496,8 +497,11 @@ function ProductForm({ product, onClose, onSuccess }) {
       }
 
       const productData = {
-        ...formData,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
         price: Number(formData.price),
+        offer: (formData.offer !== undefined && formData.offer !== null && formData.offer !== '') ? Math.min(Math.max(Number(formData.offer), 0), 100) : 0,
+        category: formData.category,
         images: imageUrls,
       };
 
@@ -622,6 +626,7 @@ function ProductForm({ product, onClose, onSuccess }) {
               )}
             </div>
 
+            {/* Price Field - Full Width */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 font-light">
                 Price (₹) <span className="text-red-500">*</span>
@@ -648,10 +653,12 @@ function ProductForm({ product, onClose, onSuccess }) {
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 font-light">
-                Category <span className="text-red-500">*</span>
-              </label>
+            {/* Category and Offer - Same Row on Large Displays */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 font-light">
+                  Category <span className="text-red-500">*</span>
+                </label>
               <select
                 value={formData.category}
                 onChange={(e) => {
@@ -673,6 +680,48 @@ function ProductForm({ product, onClose, onSuccess }) {
               {validationErrors.category && (
                 <p className="text-red-500 text-sm mt-1">{validationErrors.category}</p>
               )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 font-light">
+                  Offer (%) <span className="text-gray-400 text-xs">(Optional)</span>
+                </label>
+                <input
+                  type="number"
+                  value={formData.offer !== undefined && formData.offer !== null && formData.offer !== 0 ? formData.offer : ''}
+                  onChange={(e) => {
+                    const inputValue = e.target.value;
+                    if (inputValue === '') {
+                      setFormData({ ...formData, offer: 0 });
+                    } else {
+                      const numValue = Number(inputValue);
+                      if (!isNaN(numValue)) {
+                        const value = Math.min(Math.max(numValue, 0), 100);
+                        setFormData({ ...formData, offer: value });
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || isNaN(Number(value)) || Number(value) < 0) {
+                      setFormData({ ...formData, offer: 0 });
+                    } else {
+                      const numValue = Math.min(Math.max(Number(value), 0), 100);
+                      setFormData({ ...formData, offer: numValue });
+                    }
+                  }}
+                  min="0"
+                  max="100"
+                  step="1"
+                  className="w-full px-5 py-3.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-600/50 focus:border-pink-600 transition-all duration-500 bg-white text-gray-900 font-light placeholder:text-gray-400"
+                  placeholder="0"
+                />
+                {formData.offer > 0 && (
+                  <p className="text-green-600 text-xs mt-1 font-semibold">
+                    Discounted Price: ₹{((Number(formData.price) || 0) * (1 - Number(formData.offer) / 100)).toFixed(2)}
+                  </p>
+                )}
+              </div>
             </div>
 
             <div>

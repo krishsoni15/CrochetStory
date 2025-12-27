@@ -275,10 +275,11 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
         >
           <Image
             src="/images/heart.png"
-            alt=""
+            alt="Heart icon representing handmade crochet products made with love"
             width={80}
             height={80}
             className="object-contain opacity-15"
+            loading="lazy"
           />
         </motion.div>
 
@@ -303,10 +304,11 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
         >
           <Image
             src="/images/gift.png"
-            alt=""
+            alt="Gift box icon representing perfect crochet gift items"
             width={80}
             height={80}
             className="object-contain opacity-15"
+            loading="lazy"
           />
         </motion.div>
       </div>
@@ -481,7 +483,7 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
                 <div className="relative w-full h-full p-5 sm:p-6 md:p-7 z-10">
                   <Image
                     src={image}
-                    alt="Handcrafted creation"
+                    alt={`Handmade crochet product showcase - ${image.split('/').pop().replace(/-removebg-preview\.png$/, '').replace(/_/g, ' ')}`}
                     fill
                     className="object-contain transition-transform duration-500 group-hover:scale-110"
                     sizes="(max-width: 640px) 180px, (max-width: 1024px) 220px, (max-width: 1280px) 260px, 300px"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { motion, useScroll, useTransform, useMotionValue } from 'framer-motion';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -15,7 +15,7 @@ import InteractiveSticker from '../components/InteractiveSticker';
 import Badge from '../components/Badge';
 import YarnLoop from '../components/YarnLoop';
 import StitchLine from '../components/StitchLine';
-import { HeartIcon, SparkleIcon, YarnIcon, GiftIcon } from '../components/Icons';
+import { HeartIcon, SparkleIcon, YarnIcon, GiftIcon, ArrowRightIcon, StarIcon } from '../components/Icons';
 import Image from 'next/image';
 import MemoryCallback from '../components/MemoryCallback';
 import BreathingCard from '../components/BreathingCard';
@@ -23,6 +23,8 @@ import { useMicroRewards } from '../hooks/useMicroRewards';
 import MicroReward from '../components/MicroReward';
 import BackgroundImage from '../components/BackgroundImage';
 import InfiniteProductMarquee from '../components/InfiniteProductMarquee';
+import OfferFloating from '../components/OfferFloating';
+import { getActiveOffer } from '../lib/offers';
 
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
@@ -48,26 +50,104 @@ const ALL_AVAILABLE_IMAGES = [
 
 export default function Home() {
   const heroRef = useRef(null);
-  const { scrollYProgress } = useScroll();
-  const heroScale = useTransform(scrollYProgress, [0, 0.4], [1, 0.95]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
+  const { scrollYProgress } = useScroll({
+    layoutEffect: false, // Prevent layout recalculations that cause refresh loops
+  });
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef(null);
+  const [activeOffer, setActiveOffer] = useState(null);
+  const [showOfferBanner, setShowOfferBanner] = useState(true);
+  const [showOfferPopup, setShowOfferPopup] = useState(false);
+  
+  // Memoize transforms to prevent recalculation on every render
+  const heroScale = useTransform(scrollYProgress, [0, 0.4], [1, 0.95], { clamp: true });
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0], { clamp: true });
   const bgColor = useTransform(
     scrollYProgress,
     [0, 0.3, 0.6, 1],
-    ['#fefbf7', '#fff7ed', '#fef2f2', '#faf5ff']
+    ['#fefbf7', '#fff7ed', '#fef2f2', '#faf5ff'],
+    { clamp: true }
   );
+  const featuredProductY = useTransform(scrollYProgress, [0, 1], [0, -40], { clamp: false });
+  const featuredProductScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.98], { clamp: false });
 
   const titleRef = useTextReveal({ stagger: 0.04 });
+  
+  // Detect scroll and pause/resume animations - Completely optimized to prevent any refresh
+  useEffect(() => {
+    let ticking = false;
+    let lastScrollTop = 0;
+    let rafId = null;
+    let timeoutId = null;
+    const SCROLL_THRESHOLD = 15; // Higher threshold to reduce updates even more
+    
+    const handleScroll = () => {
+      if (!ticking) {
+        rafId = requestAnimationFrame(() => {
+          const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const scrollDelta = Math.abs(currentScrollTop - lastScrollTop);
+          
+          // Only update if scroll position changed significantly
+          if (scrollDelta > SCROLL_THRESHOLD) {
+            // Update state only if needed - prevent unnecessary re-renders
+            setIsScrolling(prev => {
+              if (!prev) {
+                lastScrollTop = currentScrollTop;
+                return true;
+              }
+              return prev;
+            });
+            
+            // Clear existing timeout
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+            }
+            
+            // Resume animations after scroll stops - longer delay for smooth experience
+            timeoutId = setTimeout(() => {
+              setIsScrolling(prev => {
+                if (prev) {
+                  lastScrollTop = currentScrollTop;
+                  return false;
+                }
+                return prev;
+              });
+            }, 300); // Longer delay for better stability
+          }
+          
+          ticking = false;
+        });
+        
+        ticking = true;
+      }
+    };
+    
+    // Use passive listeners only
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
   
 
   // State for product images
   const [productImages, setProductImages] = useState([]);
-  // Background images for Why Choose section
-  const [backgroundImages, setBackgroundImages] = useState([
+  // Background images for Why Choose section - Memoized to prevent refresh loops
+  const backgroundImages = useMemo(() => [
     '/images/imgi_303_images-removebg-preview.png',
     '/images/imgi_206_images-removebg-preview.png',
     '/images/WhatsApp_Image_2025-12-26_at_12.09.07_PM__1_-removebg-preview.png',
-  ]);
+  ], []);
 
   // Fetch products and extract images - Show ALL images
   useEffect(() => {
@@ -104,9 +184,34 @@ export default function Home() {
     fetchProductImages();
   }, []);
 
+  // Get active offer on mount with delay for floating card
+  useEffect(() => {
+    const offer = getActiveOffer();
+    if (offer) {
+      setActiveOffer(offer);
+      // Show popup after 1.5 seconds delay (1-2 seconds) after page loads
+      const timer = setTimeout(() => {
+        setShowOfferPopup(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   useEffect(() => {
     const hero = heroRef.current;
     if (!hero) return;
+
+    // Debounce resize handler - longer delay to prevent refresh
+    let resizeTimeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        // Only refresh if really needed
+        if (hero && hero.offsetHeight > 0) {
+          ScrollTrigger.refresh();
+        }
+      }, 500); // Increased debounce to 500ms
+    };
 
     const scrollTrigger = gsap.to(hero, {
       scrollTrigger: {
@@ -114,24 +219,24 @@ export default function Home() {
         start: 'top top',
         end: 'bottom top',
         scrub: 1.5,
-        invalidateOnRefresh: true, // Fix for resize issues
+        invalidateOnRefresh: false, // Prevent refresh loops
+        refreshPriority: -1, // Lower priority
+        markers: false, // Ensure markers are off
       },
       y: 80,
       scale: 0.95,
       ease: 'none',
     });
 
-    // Handle window resize to prevent scroll bugs
-    const handleResize = () => {
-      ScrollTrigger.refresh();
-    };
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', handleResize, { passive: true });
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimeout);
       if (scrollTrigger && scrollTrigger.scrollTrigger) {
         scrollTrigger.scrollTrigger.kill();
       }
+      // Clean up all triggers related to hero
       ScrollTrigger.getAll().forEach((trigger) => {
         if (trigger.vars && trigger.vars.trigger === hero) {
           trigger.kill();
@@ -257,16 +362,26 @@ export default function Home() {
     );
   }
 
-  // Component for Story Section with background images
-  function StorySection({ story, index, backgroundImages }) {
+  // Component for Story Section with background images - Completely optimized to prevent refresh
+  const StorySection = useCallback(({ story, index, backgroundImages }) => {
     const sectionRef = useRef(null);
     const { scrollYProgress: sectionProgress } = useScroll({
       target: sectionRef,
       offset: ['start end', 'end start'],
+      layoutEffect: false, // Prevent layout recalculations that cause refresh loops
     });
     
-    // Assign different images to each story section
-    const sectionImages = backgroundImages.slice(index * 2 + 3, (index * 2) + 5);
+    // Memoize background images to prevent unnecessary re-renders
+    const memoizedBackgroundImages = useMemo(() => backgroundImages, [backgroundImages]);
+    const sectionImages = useMemo(() => memoizedBackgroundImages.slice(index * 2 + 3, (index * 2) + 5), [memoizedBackgroundImages, index]);
+    
+    // Memoize position objects to prevent recreation
+    const madeWithLovePos1 = useMemo(() => ({ top: '8%', left: '3%' }), []);
+    const madeWithLovePos2 = useMemo(() => ({ bottom: '8%', right: '3%' }), []);
+    const perfectGiftPos1 = useMemo(() => ({ top: '8%', left: '3%' }), []);
+    const perfectGiftPos2 = useMemo(() => ({ bottom: '8%', right: '3%' }), []);
+    const ecoFriendlyPos1 = useMemo(() => ({ top: '8%', left: '3%' }), []);
+    const ecoFriendlyPos2 = useMemo(() => ({ bottom: '8%', right: '3%' }), []);
     
     return (
       <motion.section
@@ -274,20 +389,21 @@ export default function Home() {
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true, margin: '-100px' }}
-        transition={{ duration: 0.8 }}
+        transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
         className={`py-16 sm:py-20 md:py-24 lg:py-32 xl:py-40 relative overflow-hidden ${
           index % 2 === 0 ? 'bg-cream-50' : 'bg-warm-gradient'
         }`}
+        style={{ willChange: 'auto' }}
       >
         <div className="absolute inset-0 grain opacity-30" />
         
-        {/* Additional images for Made with Love section */}
+        {/* Additional images for Made with Love section - Optimized */}
         {story.sticker === 'Made with Love' && (
           <>
             <BackgroundImage
               key="made-with-love-1"
               src="/images/WhatsApp_Image_2025-12-26_at_12.09.11_PM__2_-removebg-preview.png"
-              position={{ top: '8%', left: '3%' }}
+              position={madeWithLovePos1}
               size="sm"
               scrollProgress={sectionProgress}
               index={10}
@@ -295,7 +411,7 @@ export default function Home() {
             <BackgroundImage
               key="made-with-love-2"
               src="/images/imgi_160_images-removebg-preview.png"
-              position={{ bottom: '8%', right: '3%' }}
+              position={madeWithLovePos2}
               size="sm"
               scrollProgress={sectionProgress}
               index={11}
@@ -303,13 +419,13 @@ export default function Home() {
           </>
         )}
         
-        {/* Additional images for Perfect Gift section */}
+        {/* Additional images for Perfect Gift section - Optimized */}
         {story.sticker === 'Perfect Gift' && (
           <>
             <BackgroundImage
               key="perfect-gift-1"
               src="/images/imgi_239_batman-Knitted-removebg-preview.png"
-              position={{ top: '8%', left: '3%' }}
+              position={perfectGiftPos1}
               size="sm"
               scrollProgress={sectionProgress}
               index={12}
@@ -317,7 +433,7 @@ export default function Home() {
             <BackgroundImage
               key="perfect-gift-2"
               src="/images/WhatsApp_Image_2025-12-26_at_12.09.08_PM-removebg-preview.png"
-              position={{ bottom: '8%', right: '3%' }}
+              position={perfectGiftPos2}
               size="sm"
               scrollProgress={sectionProgress}
               index={13}
@@ -325,13 +441,13 @@ export default function Home() {
           </>
         )}
         
-        {/* Additional images for Sustainable & Thoughtful section */}
+        {/* Additional images for Eco-Friendly section - Optimized to prevent refresh */}
         {story.sticker === 'Eco-Friendly' && (
           <>
             <BackgroundImage
               key="sustainable-1"
               src="/images/imgi_14_default-removebg-preview.png"
-              position={{ top: '8%', left: '3%' }}
+              position={ecoFriendlyPos1}
               size="sm"
               scrollProgress={sectionProgress}
               index={14}
@@ -339,7 +455,7 @@ export default function Home() {
             <BackgroundImage
               key="sustainable-2"
               src="/images/imgi_191_images-removebg-preview.png"
-              position={{ bottom: '8%', right: '3%' }}
+              position={ecoFriendlyPos2}
               size="sm"
               scrollProgress={sectionProgress}
               index={15}
@@ -378,10 +494,11 @@ export default function Home() {
               >
                 <Image
                   src="/images/heart.png"
-                  alt="Heart"
+                  alt="Heart decoration symbolizing love and care in handmade crochet products"
                   fill
                   className="object-contain drop-shadow-lg"
                   sizes="(max-width: 640px) 64px, (max-width: 1024px) 80px, 96px"
+                  loading="lazy"
                 />
               </motion.div>
             )}
@@ -398,10 +515,11 @@ export default function Home() {
               >
                 <Image
                   src="/images/gift.png"
-                  alt="Gift"
+                  alt="Gift box icon representing perfect crochet gift items"
                   fill
                   className="object-contain drop-shadow-lg"
                   sizes="(max-width: 640px) 96px, (max-width: 1024px) 112px, 128px"
+                  loading="lazy"
                 />
               </motion.div>
             )}
@@ -418,10 +536,11 @@ export default function Home() {
               >
                 <Image
                   src="/images/sunflowericon.png"
-                  alt="Sunflower"
+                  alt="Sunflower icon symbolizing eco-friendly and sustainable crochet products"
                   fill
                   className="object-contain drop-shadow-lg"
                   sizes="(max-width: 640px) 64px, (max-width: 1024px) 80px, 96px"
+                  loading="lazy"
                 />
               </motion.div>
             )}
@@ -478,20 +597,25 @@ export default function Home() {
         </div>
       </motion.section>
     );
-  }
+  }, []);
 
-  // Component for Why Section with background images
+  // Component for Why Section with background images - Completely optimized to prevent refresh
   function WhySectionWithBackground({ backgroundImages }) {
     const whySectionRef = useRef(null);
     const { scrollYProgress: whyProgress } = useScroll({
       target: whySectionRef,
       offset: ['start end', 'end start'],
+      layoutEffect: false, // Prevent layout recalculations that cause refresh loops
     });
+    
+    // Memoize background images to prevent unnecessary re-renders
+    const memoizedBackgroundImages = useMemo(() => backgroundImages, [backgroundImages]);
 
     return (
       <section 
         ref={whySectionRef}
         className="py-16 sm:py-20 md:py-24 lg:py-32 xl:py-40 bg-gradient-to-br from-pink-50/90 via-purple-50/70 to-orange-50/90 relative overflow-hidden"
+        style={{ willChange: 'auto' }} // Optimize for smooth scrolling
       >
         <div className="absolute inset-0 grain opacity-20" />
         
@@ -515,19 +639,21 @@ export default function Home() {
           <StitchLine color="purple" width="100%" className="opacity-20" />
         </div>
         
-        {/* Background images for Why Choose section */}
-        {backgroundImages[0] && (
+        {/* Background images for Why Choose section - Optimized to prevent refresh */}
+        {memoizedBackgroundImages[0] && (
           <BackgroundImage
-            src={backgroundImages[0]}
+            key="why-bg-1"
+            src={memoizedBackgroundImages[0]}
             position={{ top: '10%', left: '5%' }}
             size="md"
             scrollProgress={whyProgress}
             index={0}
           />
         )}
-        {backgroundImages[1] && (
+        {memoizedBackgroundImages[1] && (
           <BackgroundImage
-            src={backgroundImages[1]}
+            key="why-bg-2"
+            src={memoizedBackgroundImages[1]}
             position={{ top: '50%', right: '5%' }}
             size="md"
             scrollProgress={whyProgress}
@@ -878,160 +1004,668 @@ export default function Home() {
   ];
 
   return (
-    <motion.div 
-      className="min-h-screen flex flex-col overflow-hidden"
-      style={{ backgroundColor: bgColor }}
-    >
-      <Navbar />
+    <>
+      {/* SEO: Structured Data - FAQ Schema for Homepage */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: [
+              {
+                '@type': 'Question',
+                name: 'What types of crochet products do you offer?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'We offer a wide range of handmade crochet products including home decor items, hair accessories, gift articles, and custom crochet pieces. All our products are crafted with premium materials and can be customized to match your style.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'Are your crochet products customizable?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Yes! We offer customizable crochet products where you can choose colors, sizes, and designs to match your preferences. Contact us via WhatsApp to discuss your custom requirements.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'What materials do you use for crochet products?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'We use eco-friendly and sustainable natural fibers for all our crochet products. Our materials are durable, long-lasting, and environmentally conscious.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'How do I place an order?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'You can place an order by clicking the "Order" button on any product page. This will open WhatsApp where you can share your details and product preferences. We will confirm your order and provide next steps.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'Do you ship internationally?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'Currently, we primarily serve customers in India. For international shipping inquiries, please contact us via WhatsApp at +91-7265924325 or email at crochetstory@gmail.com.',
+                },
+              },
+              {
+                '@type': 'Question',
+                name: 'Where are your crochet products made?',
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: 'All our crochet products are handcrafted in Ahmedabad, India. Each piece is made with love, care, and attention to detail by skilled artisans.',
+                },
+              },
+            ],
+          }),
+        }}
+      />
+      <motion.div 
+        className="min-h-screen flex flex-col overflow-hidden"
+        style={{ backgroundColor: bgColor }}
+      >
+        <Navbar />
 
-      <a href="#main-content" className="skip-to-main">
-        Skip to main content
-      </a>
-      <main id="main-content" className="flex-grow" tabIndex={-1}>
-        {/* Hero Section */}
-        <motion.section
-          ref={heroRef}
-          style={{ scale: heroScale, opacity: heroOpacity }}
-          className="relative min-h-screen flex items-center justify-center overflow-hidden bg-joyful-gradient"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-pink-200/40 via-purple-200/30 via-orange-200/40 to-green-200/30 animate-gradient" />
-          <div className="absolute inset-0 grain" />
-          
-          {/* Hero Background Images - 4 images with proper sizing and positioning for all screens */}
-          <BackgroundImage
-            key="hero-bg-1"
-            src="/images/imgi_206_images-removebg-preview.png"
-            position={{ top: '8%', left: '2%' }}
-            size="lg"
-            scrollProgress={scrollYProgress}
-            index={0}
-          />
-          <BackgroundImage
-            key="hero-bg-2"
-            src="/images/imgi_23_default-removebg-preview.png"
-            position={{ top: '12%', right: '2%' }}
-            size="lg"
-            scrollProgress={scrollYProgress}
-            index={1}
-          />
-          <BackgroundImage
-            key="hero-bg-3"
-            src="/images/imgi_191_images-removebg-preview.png"
-            position={{ bottom: '10%', left: '3%' }}
-            size="lg"
-            scrollProgress={scrollYProgress}
-            index={2}
-          />
-          <BackgroundImage
-            key="hero-bg-4"
-            src="/images/WhatsApp_Image_2025-12-26_at_12.09.08_PM-removebg-preview.png"
-            position={{ bottom: '8%', right: '3%' }}
-            size="lg"
-            scrollProgress={scrollYProgress}
-            index={3}
-          />
-          
-
-          <div className="relative z-20 text-center px-4 sm:px-6 max-w-7xl mx-auto">
-            <motion.h1
-              ref={titleRef}
-              className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[10rem] font-display font-bold mb-6 sm:mb-8 md:mb-10 text-gray-900 leading-[0.95] tracking-tight px-4"
-            >
-              CrochetStory
-            </motion.h1>
-            
-            <motion.p
-              initial={{ opacity: 0, y: 30, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              transition={{ delay: 1, ...motionConfig.slow }}
-              className="text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl text-gray-800 mb-6 sm:mb-8 font-light tracking-tight px-4 leading-relaxed max-w-5xl mx-auto"
-            >
-              Handcrafted with{' '}
-              <span className="handwritten text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl text-pink-600 font-bold relative inline-block">
-                love
-                <motion.span
-                  className="absolute -bottom-1 left-0 right-0 h-0.5 bg-pink-400"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ delay: 1.5, duration: 0.8, ease: 'easeOut' }}
-                  style={{ transformOrigin: 'left' }}
-                />
-              </span>
-              {' '}and passion,<br />
-              made to be remembered.
-            </motion.p>
-            
-            {/* Hero Tags - After "made to be remembered" */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.2, ...motionConfig.arrive }}
-              className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-8 sm:mb-10 md:mb-12"
-            >
-              <InteractiveSticker text="Handmade" color="pink" size="sm" delay={0.1} />
-              <InteractiveSticker text="Made with Care" color="purple" size="sm" delay={0.2} />
-              <InteractiveSticker text="Perfect for Gifting" color="orange" size="sm" delay={0.3} />
-            </motion.div>
-
-            {/* Emotional CTA Block */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.6, ...motionConfig.arrive }}
-              className="flex flex-col items-center gap-3 sm:gap-4"
-            >
-              {/* Enhanced CTA Button with Breathing Animation */}
-              <motion.div
-                animate={{
-                  scale: [1, 1.02, 1],
-                }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
-              >
-                <MagneticButton
-                  as={Link}
-                  href="/products"
-                  className="relative bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 text-white px-10 sm:px-14 py-4 sm:py-5 rounded-full font-medium text-base sm:text-lg shadow-2xl hover:shadow-[0_0_50px_rgba(236,72,153,0.6)] transition-all duration-700 overflow-hidden group animate-gradient"
-                  whileHover={{ scale: 1.05, y: -3 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <span className="relative z-10">Explore Our Creations ✨</span>
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                    initial={false}
-                  />
-                </MagneticButton>
-              </motion.div>
-            </motion.div>
-          </div>
-        </motion.section>
-
-        {/* Infinite Product Marquee - Premium Showcase with Random Product Images */}
-        {productImages.length > 0 && (
-          <InfiniteProductMarquee 
-            images={productImages}
+        {/* Offer Floating Card - Bottom Right Corner (Home Page) */}
+        {showOfferBanner && activeOffer && showOfferPopup && (
+          <OfferFloating
+            offer={activeOffer}
+            onClose={() => setShowOfferBanner(false)}
           />
         )}
 
-        {/* Story Sections - Scrapbook Style */}
-        {storySections.map((story, index) => (
-          <StorySection
-            key={index}
-            story={story}
-            index={index}
-            backgroundImages={backgroundImages}
-          />
-        ))}
+        <a href="#main-content" className="skip-to-main">
+          Skip to main content
+        </a>
+        <main id="main-content" className="flex-grow" tabIndex={-1}>
+          {/* Premium Hero Section */}
+          <motion.section
+            ref={heroRef}
+            style={{ scale: heroScale, opacity: heroOpacity }}
+            className="relative min-h-[85vh] sm:min-h-screen flex items-center justify-center overflow-hidden w-full"
+          >
+            {/* Soft Pastel Gradient Background - Gentle Animation */}
+            <div className="absolute inset-0 bg-gradient-to-br from-rose-50/80 via-pink-50/60 via-purple-50/70 to-amber-50/60" />
+            <motion.div 
+              className="absolute inset-0 bg-gradient-to-br from-purple-50/25 via-pink-50/15 to-rose-50/25"
+              animate={isScrolling ? {} : {
+                opacity: [0.15, 0.3, 0.15],
+              }}
+              transition={{
+                duration: 25,
+                repeat: Infinity,
+                ease: [0.25, 0.1, 0.25, 1],
+                repeatType: 'loop',
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-white/40 via-transparent to-transparent" />
+            
+            {/* Light Noise Texture */}
+            <div className="absolute inset-0 grain opacity-30" />
+            
+            {/* Decorative Crochet Elements - Gentle Floating Yarn Loops */}
+            <motion.div
+              className="absolute top-20 left-8 sm:left-16 w-16 h-16 sm:w-20 sm:h-20 opacity-20"
+              animate={isScrolling ? {} : {
+                y: [0, -8, 0],
+                rotate: [0, 2, 0],
+                scale: [1, 1.02, 1],
+              }}
+              transition={{
+                duration: 12,
+                repeat: Infinity,
+                ease: [0.25, 0.1, 0.25, 1],
+                repeatType: 'loop',
+              }}
+            >
+              <YarnLoop className="text-pink-300" />
+            </motion.div>
+            <motion.div
+              className="absolute bottom-32 right-12 sm:right-24 w-12 h-12 sm:w-16 sm:h-16 opacity-15"
+              animate={isScrolling ? {} : {
+                y: [0, 6, 0],
+                rotate: [0, -2, 0],
+                scale: [1, 1.03, 1],
+              }}
+              transition={{
+                duration: 14,
+                repeat: Infinity,
+                ease: [0.25, 0.1, 0.25, 1],
+                repeatType: 'loop',
+                delay: 1.5,
+              }}
+            >
+              <YarnLoop className="text-purple-300" />
+            </motion.div>
+            
+            {/* Featured Product Image - Top Left */}
+            <motion.div
+              className="absolute top-12 sm:top-16 md:top-20 left-8 sm:left-12 md:left-16 w-[100px] h-[100px] sm:w-[140px] sm:h-[140px] md:w-[180px] md:h-[180px] lg:w-[220px] lg:h-[220px] opacity-10 sm:opacity-15 pointer-events-none z-0"
+              style={{
+                y: featuredProductY,
+                scale: featuredProductScale,
+              }}
+            >
+              <motion.div
+                animate={isScrolling ? {} : {
+                  y: [0, -12, 0],
+                  rotate: [0, 1, 0],
+                  scale: [1, 1.01, 1],
+                }}
+                transition={{
+                  duration: 16,
+                  repeat: Infinity,
+                  ease: [0.25, 0.1, 0.25, 1],
+                  repeatType: 'loop',
+                }}
+                className="w-full h-full relative"
+              >
+                <Image
+                  src="/images/imgi_206_images-removebg-preview.png"
+                  alt="Featured Crochet Product"
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </motion.div>
+            </motion.div>
+            
+            {/* Background Images - Subtle Parallax */}
+            <BackgroundImage
+              key="hero-bg-1"
+              src="/images/imgi_23_default-removebg-preview.png"
+              position={{ top: '10%', right: '5%' }}
+              size="md"
+              scrollProgress={scrollYProgress}
+              index={0}
+            />
+            <BackgroundImage
+              key="hero-bg-2"
+              src="/images/imgi_191_images-removebg-preview.png"
+              position={{ bottom: '15%', left: '5%' }}
+              size="md"
+              scrollProgress={scrollYProgress}
+              index={1}
+            />
+            <BackgroundImage
+              key="hero-bg-3"
+              src="/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM__1_-removebg-preview.png"
+              position={{ bottom: '5%', right: '5%' }}
+              size="md"
+              scrollProgress={scrollYProgress}
+              index={2}
+            />
 
-        {/* Why CrochetStory Section */}
-        <WhySectionWithBackground backgroundImages={backgroundImages} />
+            {/* Main Content with Subtle Blur */}
+            <div className="relative z-20 text-center px-4 sm:px-6 lg:px-8 w-full">
+              {/* Subtle Blurred Background Container */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute inset-0 -z-10"
+              />
+              
+              {/* Content */}
+              <div className="relative z-10">
+                {/* Large Elegant Brand Title */}
+                <motion.h1
+                  ref={titleRef}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl xl:text-[10rem] font-display font-bold mb-4 sm:mb-6 text-gray-900 leading-[0.95] tracking-tight"
+                >
+                  CrochetStory
+                </motion.h1>
+              
+              {/* One-line Emotional Subheading */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-gray-700 mb-8 sm:mb-10 md:mb-12 font-light tracking-wide max-w-4xl mx-auto leading-relaxed"
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              >
+                Handcrafted with{' '}
+                <span className="handwritten text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-pink-600 font-bold relative inline-block">
+                  love
+                </span>
+                {' '}for gifting memories
+              </motion.p>
+              
+              {/* Primary CTA Button - Simple & Elegant */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                className="mb-6 sm:mb-8 flex justify-center"
+              >
+                <Link
+                  href="/products"
+                  className="relative group inline-flex items-center justify-center gap-2 sm:gap-2.5 px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 rounded-full font-semibold text-sm sm:text-base md:text-lg text-white overflow-hidden transition-all duration-300 hover:scale-105"
+                >
+                  {/* Simple Gradient Background */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full" />
+                  
+                  {/* Subtle Hover Effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  
+                  {/* Button Content */}
+                  <span className="relative z-10 flex items-center gap-2">
+                    <span>Explore Our Creations</span>
+                    <motion.span
+                      className="inline-flex items-center"
+                      whileHover={{ x: 3 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ArrowRightIcon size={18} className="sm:w-5 sm:h-5" />
+                    </motion.span>
+                  </span>
+                  
+                  {/* Soft Shadow */}
+                  <div className="absolute inset-0 rounded-full shadow-md shadow-pink-500/25 -z-10" />
+                </Link>
+              </motion.div>
+              
+              {/* Secondary Proof Text */}
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.9, duration: 0.8 }}
+                className="text-sm sm:text-base text-gray-600 mb-8 sm:mb-10 font-light tracking-wide"
+                style={{ fontFamily: 'Inter, sans-serif' }}
+              >
+                Handmade • Perfect for Gifting • Crafted with Care
+              </motion.p>
+              
+                  {/* 3 Feature Badges - Sticker Style like "Ready to explore?" */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                className="flex flex-wrap justify-center gap-3 sm:gap-4 items-center mb-8"
+              >
+                <InteractiveSticker text="Premium Quality" color="pink" size="md" delay={1.3} />
+                <InteractiveSticker text="Crafted with Love" color="purple" size="md" delay={1.4} />
+                <InteractiveSticker text="Unique Designs" color="orange" size="md" delay={1.5} />
+              </motion.div>
 
-      </main>
+              </div>
+            </div>
+          </motion.section>
 
-      <Footer />
-    </motion.div>
+          {/* Infinite Product Marquee - Premium Showcase with Random Product Images */}
+          {productImages.length > 0 && (
+            <InfiniteProductMarquee 
+              images={productImages}
+            />
+          )}
+
+          {/* Story Sections - Scrapbook Style */}
+          {storySections.map((story, index) => (
+            <StorySection
+              key={`story-${story.sticker}-${index}`}
+              story={story}
+              index={index}
+              backgroundImages={backgroundImages}
+            />
+          ))}
+
+          {/* Why CrochetStory Section */}
+          <WhySectionWithBackground backgroundImages={backgroundImages} />
+
+          {/* SEO: FAQ Section - Premium Design with 6 Background Images */}
+          <section className="relative py-20 sm:py-24 md:py-28 lg:py-32 bg-gradient-to-b from-rose-50/30 via-pink-50/20 to-purple-50/30 overflow-hidden">
+            {/* Decorative Background Elements */}
+            <div className="absolute inset-0 grain opacity-20" />
+            <div className="absolute top-0 left-0 w-64 h-64 bg-pink-200/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-200/10 rounded-full blur-3xl" />
+            
+            {/* 6 Background Images with Scroll Animations - Light & Responsive */}
+            {/* Image 1 - Top Left */}
+            <motion.div
+              initial={{ opacity: 0, x: -50, y: -20 }}
+              whileInView={{ opacity: 1, x: 0, y: 0 }}
+              viewport={{ once: true, margin: '-100px' }}
+              transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
+              className="absolute left-0 top-[8%] w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 opacity-[0.03] sm:opacity-[0.04] md:opacity-[0.05] pointer-events-none z-0"
+            >
+              <motion.div
+                animate={{
+                  y: [0, -12, 0],
+                  rotate: [0, 2, 0],
+                }}
+                transition={{
+                  duration: 8,
+                  repeat: Infinity,
+                  ease: [0.25, 0.1, 0.25, 1],
+                  repeatType: 'loop',
+                }}
+                className="w-full h-full relative"
+              >
+                <Image
+                  src="/images/imgi_23_default-removebg-preview.png"
+                  alt=""
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 640px) 96px, (max-width: 1024px) 128px, 192px"
+                  loading="lazy"
+                />
+              </motion.div>
+            </motion.div>
+            
+            {/* Image 2 - Top Right */}
+            <motion.div
+              initial={{ opacity: 0, x: 50, y: -20 }}
+              whileInView={{ opacity: 1, x: 0, y: 0 }}
+              viewport={{ once: true, margin: '-100px' }}
+              transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1], delay: 0.15 }}
+              className="absolute right-0 top-[12%] w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 opacity-[0.03] sm:opacity-[0.04] md:opacity-[0.05] pointer-events-none z-0"
+            >
+              <motion.div
+                animate={{
+                  y: [0, 10, 0],
+                  rotate: [0, -2, 0],
+                }}
+                transition={{
+                  duration: 9,
+                  repeat: Infinity,
+                  ease: [0.25, 0.1, 0.25, 1],
+                  repeatType: 'loop',
+                  delay: 0.3,
+                }}
+                className="w-full h-full relative"
+              >
+                <Image
+                  src="/images/imgi_191_images-removebg-preview.png"
+                  alt=""
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 640px) 96px, (max-width: 1024px) 128px, 192px"
+                  loading="lazy"
+                />
+              </motion.div>
+            </motion.div>
+            
+            {/* Image 3 - Middle Left */}
+            <motion.div
+              initial={{ opacity: 0, x: -40, y: 0 }}
+              whileInView={{ opacity: 1, x: 0, y: 0 }}
+              viewport={{ once: true, margin: '-100px' }}
+              transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1], delay: 0.3 }}
+              className="absolute left-4 sm:left-8 top-[45%] w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 opacity-[0.025] sm:opacity-[0.035] md:opacity-[0.045] pointer-events-none z-0"
+            >
+              <motion.div
+                animate={{
+                  y: [0, -8, 0],
+                  rotate: [0, -1.5, 0],
+                }}
+                transition={{
+                  duration: 10,
+                  repeat: Infinity,
+                  ease: [0.25, 0.1, 0.25, 1],
+                  repeatType: 'loop',
+                  delay: 0.6,
+                }}
+                className="w-full h-full relative"
+              >
+                <Image
+                  src="/images/imgi_303_images-removebg-preview.png"
+                  alt=""
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 640px) 80px, (max-width: 1024px) 112px, 176px"
+                  loading="lazy"
+                />
+              </motion.div>
+            </motion.div>
+            
+            {/* Image 4 - Middle Right */}
+            <motion.div
+              initial={{ opacity: 0, x: 40, y: 0 }}
+              whileInView={{ opacity: 1, x: 0, y: 0 }}
+              viewport={{ once: true, margin: '-100px' }}
+              transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1], delay: 0.45 }}
+              className="absolute right-4 sm:right-8 top-[50%] w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 opacity-[0.025] sm:opacity-[0.035] md:opacity-[0.045] pointer-events-none z-0"
+            >
+              <motion.div
+                animate={{
+                  y: [0, 8, 0],
+                  rotate: [0, 1.5, 0],
+                }}
+                transition={{
+                  duration: 11,
+                  repeat: Infinity,
+                  ease: [0.25, 0.1, 0.25, 1],
+                  repeatType: 'loop',
+                  delay: 0.9,
+                }}
+                className="w-full h-full relative"
+              >
+                <Image
+                  src="/images/imgi_206_images-removebg-preview.png"
+                  alt=""
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 640px) 80px, (max-width: 1024px) 112px, 176px"
+                  loading="lazy"
+                />
+              </motion.div>
+            </motion.div>
+            
+            {/* Image 5 - Bottom Left */}
+            <motion.div
+              initial={{ opacity: 0, x: -30, y: 30 }}
+              whileInView={{ opacity: 1, x: 0, y: 0 }}
+              viewport={{ once: true, margin: '-100px' }}
+              transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1], delay: 0.6 }}
+              className="absolute left-0 sm:left-4 bottom-[15%] w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 opacity-[0.025] sm:opacity-[0.035] md:opacity-[0.045] pointer-events-none z-0"
+            >
+              <motion.div
+                animate={{
+                  y: [0, -10, 0],
+                  rotate: [0, -2, 0],
+                }}
+                transition={{
+                  duration: 9,
+                  repeat: Infinity,
+                  ease: [0.25, 0.1, 0.25, 1],
+                  repeatType: 'loop',
+                  delay: 1.2,
+                }}
+                className="w-full h-full relative"
+              >
+                <Image
+                  src="/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM__1_-removebg-preview.png"
+                  alt=""
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 640px) 88px, (max-width: 1024px) 120px, 184px"
+                  loading="lazy"
+                />
+              </motion.div>
+            </motion.div>
+            
+            {/* Image 6 - Bottom Right */}
+            <motion.div
+              initial={{ opacity: 0, x: 30, y: 30 }}
+              whileInView={{ opacity: 1, x: 0, y: 0 }}
+              viewport={{ once: true, margin: '-100px' }}
+              transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1], delay: 0.75 }}
+              className="absolute right-0 sm:right-4 bottom-[20%] w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 opacity-[0.025] sm:opacity-[0.035] md:opacity-[0.045] pointer-events-none z-0"
+            >
+              <motion.div
+                animate={{
+                  y: [0, 10, 0],
+                  rotate: [0, 2, 0],
+                }}
+                transition={{
+                  duration: 10,
+                  repeat: Infinity,
+                  ease: [0.25, 0.1, 0.25, 1],
+                  repeatType: 'loop',
+                  delay: 1.5,
+                }}
+                className="w-full h-full relative"
+              >
+                <Image
+                  src="/images/WhatsApp_Image_2025-12-26_at_12.09.07_PM__1_-removebg-preview.png"
+                  alt=""
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 640px) 88px, (max-width: 1024px) 120px, 184px"
+                  loading="lazy"
+                />
+              </motion.div>
+            </motion.div>
+            
+            <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+              {/* Section Header - Enhanced */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={motionConfig.slow}
+                className="text-center mb-16 sm:mb-20"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  whileInView={{ scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                  className="inline-block mb-4"
+                >
+                  <SparkleIcon size={40} className="text-pink-500 mx-auto" />
+                </motion.div>
+                <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold text-gray-900 mb-6 leading-tight">
+                  Frequently Asked{' '}
+                  <span className="bg-gradient-to-r from-pink-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    Questions
+                  </span>
+                </h2>
+                <p className="text-lg sm:text-xl md:text-2xl text-gray-700 font-light max-w-2xl mx-auto leading-relaxed">
+                  Everything you need to know about our handmade crochet products
+                </p>
+              </motion.div>
+
+              {/* FAQ Items - Premium Cards (Text & Graphics Only) */}
+              <div className="space-y-5 sm:space-y-6 relative z-10">
+                {[
+                  {
+                    question: 'What types of crochet products do you offer?',
+                    answer: 'We offer a wide range of handmade crochet products including home decor items, hair accessories, gift articles, and custom crochet pieces. All our products are crafted with premium materials and can be customized to match your style.',
+                    icon: SparkleIcon,
+                  },
+                  {
+                    question: 'Are your crochet products customizable?',
+                    answer: 'Yes! We offer customizable crochet products where you can choose colors, sizes, and designs to match your preferences. Contact us via WhatsApp to discuss your custom requirements.',
+                    icon: HeartIcon,
+                  },
+                  {
+                    question: 'What materials do you use for crochet products?',
+                    answer: 'We use eco-friendly and sustainable natural fibers for all our crochet products. Our materials are durable, long-lasting, and environmentally conscious.',
+                    icon: YarnIcon,
+                  },
+                  {
+                    question: 'How do I place an order?',
+                    answer: 'You can place an order by clicking the "Order" button on any product page. This will open WhatsApp where you can share your details and product preferences. We will confirm your order and provide next steps.',
+                    icon: GiftIcon,
+                  },
+                  {
+                    question: 'Do you ship internationally?',
+                    answer: 'Currently, we primarily serve customers in India. For international shipping inquiries, please contact us via WhatsApp at +91-7265924325 or email at crochetstory@gmail.com.',
+                    icon: SparkleIcon,
+                  },
+                  {
+                    question: 'Where are your crochet products made?',
+                    answer: 'All our crochet products are handcrafted in Ahmedabad, India. Each piece is made with love, care, and attention to detail by skilled artisans.',
+                    icon: HeartIcon,
+                  },
+                ].map((faq, index) => {
+                  const IconComponent = faq.icon;
+                  return (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 50 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: '-100px' }}
+                      transition={{ 
+                        ...motionConfig.arrive, 
+                        delay: index * 0.15,
+                        duration: 0.8 
+                      }}
+                      whileHover={{ y: -4, scale: 1.01 }}
+                      className="group relative bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 shadow-lg border border-pink-100/50 hover:border-pink-200/80 hover:shadow-2xl transition-all duration-300 overflow-hidden"
+                    >
+                      {/* Gradient Overlay on Hover */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-pink-50/0 via-purple-50/0 to-pink-50/0 group-hover:from-pink-50/30 group-hover:via-purple-50/20 group-hover:to-pink-50/30 transition-all duration-300 rounded-2xl sm:rounded-3xl" />
+                      
+                      {/* Content - Text & Graphics Only */}
+                      <div className="relative z-10">
+                        <div className="flex items-start gap-4 sm:gap-5">
+                          {/* Icon */}
+                          <div className="flex-shrink-0 mt-1">
+                            <motion.div
+                              initial={{ scale: 0, rotate: -180 }}
+                              whileInView={{ scale: 1, rotate: 0 }}
+                              viewport={{ once: true }}
+                              transition={{ delay: index * 0.15 + 0.1, type: 'spring', stiffness: 200 }}
+                              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
+                            >
+                              <IconComponent size={20} className="sm:w-6 sm:h-6 text-pink-600" />
+                            </motion.div>
+                          </div>
+                          
+                          {/* Question & Answer */}
+                          <div className="flex-1">
+                            <motion.h3
+                              initial={{ opacity: 0, y: 20 }}
+                              whileInView={{ opacity: 1, y: 0 }}
+                              viewport={{ once: true }}
+                              transition={{ delay: index * 0.15 + 0.3 }}
+                              className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-3 sm:mb-4 font-display leading-tight group-hover:text-pink-700 transition-colors duration-300"
+                            >
+                              {faq.question}
+                            </motion.h3>
+                            <motion.p
+                              initial={{ opacity: 0 }}
+                              whileInView={{ opacity: 1 }}
+                              viewport={{ once: true }}
+                              transition={{ delay: index * 0.15 + 0.4 }}
+                              className="text-sm sm:text-base md:text-lg text-gray-600 leading-relaxed font-light"
+                            >
+                              {faq.answer}
+                            </motion.p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Decorative Corner Element */}
+                      <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-pink-200/20 to-transparent rounded-bl-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+        </main>
+
+        {/* Animated Border Line at Bottom - Single Line */}
+        <div className="relative w-full">
+          <div className="absolute top-0 left-0 right-0">
+            <StitchLine color="pink" width="100%" className="opacity-30" />
+          </div>
+        </div>
+
+        <Footer />
+      </motion.div>
+    </>
   );
 }

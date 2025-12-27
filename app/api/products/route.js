@@ -40,7 +40,7 @@ export async function POST(request) {
     await dbConnect();
 
     const body = await request.json();
-    const { name, description, price, category, images } = body;
+    const { name, description, price, category, images, offer } = body;
 
     // Validate all required fields
     if (!name || !name.trim()) {
@@ -84,6 +84,7 @@ export async function POST(request) {
       price: Number(price),
       category: category.trim(),
       images: images.filter(img => img && img.trim()), // Filter out empty images
+      offer: (offer !== undefined && offer !== null && offer !== '') ? Math.min(Math.max(Number(offer), 0), 100) : 0, // Clamp between 0-100
     });
 
     return NextResponse.json(product, { status: 201 });

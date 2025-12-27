@@ -35,7 +35,7 @@ export async function PUT(request, { params }) {
     }
     
     const body = await request.json();
-    const { name, description, price, category, images } = body;
+    const { name, description, price, category, images, offer } = body;
 
     // Validate all required fields
     if (!name || !name.trim()) {
@@ -80,7 +80,8 @@ export async function PUT(request, { params }) {
         description: description.trim(), 
         price: Number(price), 
         category: category.trim(), 
-        images: images.filter(img => img && img.trim()) // Filter out empty images
+        images: images.filter(img => img && img.trim()), // Filter out empty images
+        offer: (offer !== undefined && offer !== null && offer !== '') ? Math.min(Math.max(Number(offer), 0), 100) : 0, // Clamp between 0-100
       },
       { new: true, runValidators: true }
     );

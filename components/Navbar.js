@@ -106,10 +106,10 @@ export default function Navbar() {
         top: 0, 
         left: 0, 
         right: 0, 
-        zIndex: 100,
+        zIndex: 9999,
         width: '100%'
       }}
-      className={`fixed top-0 left-0 right-0 z-[100] w-full transition-all duration-700 ${
+      className={`fixed top-0 left-0 right-0 z-[9999] w-full transition-all duration-700 ${
         scrolled 
           ? 'glass shadow-soft bg-white/95 backdrop-blur-xl' 
           : isHomePage 

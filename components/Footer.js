@@ -72,8 +72,26 @@ export default function Footer() {
           >
             <h4 className="text-sm font-semibold text-gray-900 mb-6 font-serif">Contact Info</h4>
             <ul className="space-y-4 text-sm text-gray-600 font-light">
-              <li>Phone: +91 7265924325</li>
-              <li>Email: crochetstory@gmail.com</li>
+              <li>
+                Phone:{' '}
+                <a
+                  href="https://wa.me/917265924325"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-pink-600 hover:text-pink-700 underline transition-colors duration-300"
+                >
+                  +91 7265924325
+                </a>
+              </li>
+              <li>
+                Email:{' '}
+                <a
+                  href="mailto:crochetstory@gmail.com"
+                  className="text-pink-600 hover:text-pink-700 underline transition-colors duration-300"
+                >
+                  crochetstory@gmail.com
+                </a>
+              </li>
               <li>Location: Ahmedabad, India</li>
             </ul>
           </motion.div>

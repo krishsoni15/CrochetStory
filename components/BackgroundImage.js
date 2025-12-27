@@ -2,6 +2,7 @@
 
 import { motion, useTransform } from 'framer-motion';
 import Image from 'next/image';
+import { useMemo } from 'react';
 
 export default function BackgroundImage({ 
   src, 
@@ -16,15 +17,25 @@ export default function BackgroundImage({
     lg: 'w-52 h-52 sm:w-56 sm:h-56 md:w-60 md:h-60',
   };
 
-  const y = useTransform(scrollProgress, [0, 1], [0, index % 2 === 0 ? -30 : 30]);
-  const opacity = useTransform(scrollProgress, [0, 0.5, 1], [0.15, 0.22, 0.15]);
-  const scale = useTransform(scrollProgress, [0, 1], [1, 1.03 + index * 0.01]);
-  const rotate = useTransform(scrollProgress, [0, 1], [0, index * 3]);
+  // Memoize transform values to prevent recalculation on every render
+  const yRange = useMemo(() => [0, index % 2 === 0 ? -15 : 15], [index]);
+  const opacityRange = useMemo(() => [0.12, 0.18, 0.12], []);
+  const scaleRange = useMemo(() => [1, 1.015 + index * 0.005], [index]);
+  const rotateRange = useMemo(() => [0, index * 1.5], [index]);
 
+  // Use stable transforms to prevent refresh loops - Static if no scrollProgress
+  const y = scrollProgress ? useTransform(scrollProgress, [0, 1], yRange, { clamp: false }) : 0;
+  const opacity = scrollProgress ? useTransform(scrollProgress, [0, 0.5, 1], opacityRange, { clamp: false }) : 0.15;
+  const scale = scrollProgress ? useTransform(scrollProgress, [0, 1], scaleRange, { clamp: false }) : 1;
+  const rotate = scrollProgress ? useTransform(scrollProgress, [0, 1], rotateRange, { clamp: false }) : 0;
+
+  // Memoize position object to prevent recreation
+  const positionStyle = useMemo(() => position, [position]);
+  
   return (
     <motion.div
       style={{ 
-        ...position,
+        ...positionStyle,
         y, 
         opacity, 
         scale, 
@@ -34,10 +45,11 @@ export default function BackgroundImage({
     >
       <Image
         src={src}
-        alt=""
+        alt="Handmade crochet product decorative background image"
         fill
         className="object-contain"
         sizes="(max-width: 640px) 96px, (max-width: 1024px) 128px, 192px"
+        loading="lazy"
       />
     </motion.div>
   );

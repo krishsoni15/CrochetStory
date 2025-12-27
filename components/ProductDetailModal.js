@@ -236,7 +236,7 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
+          className="fixed inset-0 z-[9998] bg-black/95 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
           onClick={() => {
             if (!isZoomed) onClose();
           }}
@@ -378,9 +378,23 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
                   {product.name}
                 </h3>
                 <div className="flex items-center gap-2 mb-3 flex-wrap">
-                  <span className="text-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                    ₹{product.price}
-                  </span>
+                  {product.offer && Number(product.offer) > 0 ? (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                        ₹{((Number(product.price) || 0) * (1 - Number(product.offer) / 100)).toFixed(2)}
+                      </span>
+                      <span className="text-sm text-gray-400 line-through">
+                        ₹{Number(product.price) || 0}
+                      </span>
+                      <span className="text-xs font-bold bg-green-500 text-white px-2 py-1 rounded-full">
+                        {Math.round(Number(product.offer))}% OFF
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                      ₹{Number(product.price) || 0}
+                    </span>
+                  )}
                   {product.category && (
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                       {product.category}
