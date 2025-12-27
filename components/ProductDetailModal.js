@@ -253,18 +253,30 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
             onTouchMove={onContainerTouchMove}
             onTouchEnd={onContainerTouchEnd}
           >
-            {/* Close Button - Compact */}
+            {/* Close Button - Beautiful & Prominent */}
             <div className="absolute top-2 sm:top-3 right-2 sm:right-3 z-30">
               <motion.button
-                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileHover={{ scale: 1.15, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="w-9 h-9 sm:w-10 sm:h-10 bg-white/95 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all border border-gray-200/50"
-                aria-label="Close"
+                className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-xl hover:shadow-2xl transition-all duration-300 group overflow-hidden"
+                aria-label="Close product details"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {/* Glow Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 rounded-full blur-lg opacity-40 group-hover:opacity-60 transition-opacity duration-300" />
+
+                {/* Button Background */}
+                <div className="absolute inset-[2px] bg-white rounded-full" />
+
+                {/* Icon */}
+                <div className="relative z-10">
+                  <svg className="w-6 h-6 sm:w-7 sm:h-7 text-gray-700 group-hover:text-pink-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                 </svg>
+                </div>
+
+                {/* Ripple Effect */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-pink-400 to-purple-400 scale-0 group-hover:scale-100 transition-transform duration-300 origin-center opacity-0 group-hover:opacity-20" />
               </motion.button>
             </div>
 
@@ -373,6 +385,21 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
 
             {/* Product Details - Simple & Scrollable */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-5 form-scroll-container">
+              {/* Mobile Close Button - At Top of Content */}
+              <div className="sm:hidden flex justify-end mb-3">
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={onClose}
+                  className="w-10 h-10 bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg text-white hover:shadow-xl transition-all duration-300"
+                  aria-label="Close product details"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </motion.button>
+              </div>
+
               <div className="mb-3">
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 break-words">
                   {product.name}

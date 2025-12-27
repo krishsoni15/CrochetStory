@@ -143,8 +143,6 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
     resumeTimeoutRef.current = setTimeout(() => {
       setIsDragging(false);
       setIsPaused(false);
-      // Allow page scroll after delay
-      document.body.style.overflow = '';
     }, 1500);
   };
 
@@ -320,13 +318,9 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
           className="relative w-full overflow-x-hidden overflow-y-visible px-8 sm:px-12 md:px-16 lg:px-24 xl:px-32 scrollbar-hide"
           onMouseEnter={() => {
             setIsHovered(true);
-            // Prevent page scroll when hovering over image area
-            document.body.style.overflow = 'hidden';
           }}
           onMouseLeave={() => {
             setIsHovered(false);
-            // Allow page scroll when mouse leaves image area
-            document.body.style.overflow = '';
             // Resume after a short delay when mouse leaves
             if (resumeTimeoutRef.current) {
               clearTimeout(resumeTimeoutRef.current);
@@ -337,8 +331,6 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
           }}
           onMouseDown={() => {
             setIsPaused(true);
-            // Prevent page scroll when clicking on image area
-            document.body.style.overflow = 'hidden';
           }}
           onMouseUp={() => {
             // Resume after a short delay when mouse is released
@@ -347,32 +339,25 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
             }
             resumeTimeoutRef.current = setTimeout(() => {
               setIsPaused(false);
-              // Allow page scroll after delay
-              document.body.style.overflow = '';
             }, 1000);
           }}
           onWheel={(e) => {
-            // Prevent vertical page scroll, only allow horizontal image scrolling
+            // Only prevent default for horizontal scrolling, allow normal page scroll
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
             e.preventDefault();
-            e.stopPropagation();
             setIsDragging(true);
-            // Prevent page scroll when scrolling images
-            document.body.style.overflow = 'hidden';
             
             // Cancel any pending auto-scroll
             if (animationFrameRef.current) {
               cancelAnimationFrame(animationFrameRef.current);
             }
             
-            // Use deltaX for horizontal scroll, or deltaY if horizontal not available
-            // Support both left (negative) and right (positive) scrolling
-            // Smoother scroll with reduced sensitivity
-            const scrollAmount = (e.deltaX || e.deltaY) * 0.6;
+              // Simple horizontal scroll handling
+              const scrollAmount = e.deltaX * 0.8;
             const currentX = x.get();
             autoScrollX.current = currentX - scrollAmount;
             
-            // Normalize position for seamless infinite loop - keep within one set width
-            // When position goes beyond one set, reset to maintain seamless continuity
+              // Normalize position for seamless loop
             while (autoScrollX.current <= -singleSetWidthPx) {
               autoScrollX.current += singleSetWidthPx;
             }
@@ -380,7 +365,6 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
               autoScrollX.current -= singleSetWidthPx;
             }
             
-            // Smooth transition
             x.set(autoScrollX.current);
             
             // Clear any existing timeout
@@ -388,13 +372,13 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
               clearTimeout(resumeTimeoutRef.current);
             }
             
-            // Reset drag state after 1.5 seconds to resume auto-scroll
+              // Reset drag state after 1 second
             resumeTimeoutRef.current = setTimeout(() => {
               setIsDragging(false);
               setIsPaused(false);
-              // Allow page scroll after delay
-              document.body.style.overflow = '';
-            }, 1500);
+              }, 1000);
+            }
+            // If vertical scroll, don't prevent default - allow normal page scrolling
           }}
           style={{
             maskImage: 'linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%)',
@@ -413,6 +397,8 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
             willChange: 'transform',
             x: x,
             overflow: 'visible',
+            backfaceVisibility: 'hidden',
+            perspective: 1000,
           }}
           drag="x"
           dragConstraints={{ left: -Infinity, right: Infinity }}
@@ -426,8 +412,6 @@ export default function InfiniteProductMarquee({ images, tags = null }) {
           onDragStart={() => {
             setIsDragging(true);
             setIsPaused(true);
-            // Prevent page scroll when dragging images
-            document.body.style.overflow = 'hidden';
             // Store current position when drag starts
             autoScrollX.current = x.get();
           }}

@@ -438,3 +438,39 @@ export function ArrowRightIcon({ className = '', size = 24 }) {
   );
 }
 
+export function ArrowUpIcon({ className = '', size = 24, animated = false }) {
+  const icon = (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      width={size}
+      height={size}
+    >
+      <path
+        d="M12 4L4 12H9V20H15V12H20L12 4Z"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+
+  if (animated) {
+    return (
+      <motion.div
+        animate={{ y: [0, -2, 0] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        className="inline-block"
+      >
+        {icon}
+      </motion.div>
+    );
+  }
+
+  return icon;
+}
+

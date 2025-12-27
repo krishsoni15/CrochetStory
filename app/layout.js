@@ -4,6 +4,7 @@ import CustomCursor from '../components/CustomCursor';
 import DelightMessage from '../components/DelightMessage';
 import SecretInteraction from '../components/SecretInteraction';
 import ImageFix from '../components/ImageFix';
+import ScrollToTopButton from '../components/ScrollToTopButton';
 
 // SEO: Comprehensive metadata for all pages
 export const metadata = {
@@ -172,6 +173,7 @@ export default function RootLayout({ children }) {
         <CustomCursor />
         <DelightMessage />
         <SecretInteraction />
+        <ScrollToTopButton />
         <SmoothScrollProvider>
           {children}
         </SmoothScrollProvider>

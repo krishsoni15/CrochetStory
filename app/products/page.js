@@ -388,7 +388,7 @@ export default function ProductsPage() {
           }),
         }}
       />
-      {!showAddForm && <Navbar />}
+      {!showAddForm && !showProductDetail && <Navbar />}
 
       {/* Hero Section - Elegant */}
       <section className="pt-24 sm:pt-28 md:pt-32 pb-6 sm:pb-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50/50">

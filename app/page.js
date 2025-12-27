@@ -73,68 +73,29 @@ export default function Home() {
 
   const titleRef = useTextReveal({ stagger: 0.04 });
   
-  // Detect scroll and pause/resume animations - Completely optimized to prevent any refresh
+  // Simplified scroll handling - only for background color changes, no excessive re-renders
   useEffect(() => {
-    let ticking = false;
-    let lastScrollTop = 0;
-    let rafId = null;
     let timeoutId = null;
-    const SCROLL_THRESHOLD = 15; // Higher threshold to reduce updates even more
     
     const handleScroll = () => {
-      if (!ticking) {
-        rafId = requestAnimationFrame(() => {
-          const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-          const scrollDelta = Math.abs(currentScrollTop - lastScrollTop);
-          
-          // Only update if scroll position changed significantly
-          if (scrollDelta > SCROLL_THRESHOLD) {
-            // Update state only if needed - prevent unnecessary re-renders
-            setIsScrolling(prev => {
-              if (!prev) {
-                lastScrollTop = currentScrollTop;
-                return true;
-              }
-              return prev;
-            });
-            
             // Clear existing timeout
             if (timeoutId) {
               clearTimeout(timeoutId);
             }
             
-            // Resume animations after scroll stops - longer delay for smooth experience
+      // Simple debounced scroll detection - much lighter
             timeoutId = setTimeout(() => {
-              setIsScrolling(prev => {
-                if (prev) {
-                  lastScrollTop = currentScrollTop;
-                  return false;
-                }
-                return prev;
-              });
-            }, 300); // Longer delay for better stability
-          }
-          
-          ticking = false;
-        });
-        
-        ticking = true;
-      }
+        setIsScrolling(false);
+      }, 150);
     };
     
-    // Use passive listeners only
+    // Use passive listeners for better performance
     window.addEventListener('scroll', handleScroll, { passive: true });
     
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
       if (timeoutId) {
         clearTimeout(timeoutId);
-      }
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
       }
     };
   }, []);
@@ -1067,7 +1028,10 @@ export default function Home() {
       />
       <motion.div 
         className="min-h-screen flex flex-col overflow-hidden"
-        style={{ backgroundColor: bgColor }}
+        style={{
+          backgroundColor: bgColor,
+          willChange: 'auto'
+        }}
       >
         <Navbar />
 
@@ -1175,7 +1139,7 @@ export default function Home() {
               </motion.div>
             </motion.div>
             
-            {/* Background Images - Subtle Parallax */}
+            {/* Background Images - Beautiful Hero Background */}
             <BackgroundImage
               key="hero-bg-1"
               src="/images/imgi_23_default-removebg-preview.png"
@@ -1194,8 +1158,8 @@ export default function Home() {
             />
             <BackgroundImage
               key="hero-bg-3"
-              src="/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM__1_-removebg-preview.png"
-              position={{ bottom: '5%', right: '5%' }}
+              src="/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM__1_-removaebg-preview.png"
+              position={{ bottom: '10%', right: '8%' }}
               size="md"
               scrollProgress={scrollYProgress}
               index={2}
@@ -1320,14 +1284,14 @@ export default function Home() {
           {/* Why CrochetStory Section */}
           <WhySectionWithBackground backgroundImages={backgroundImages} />
 
-          {/* SEO: FAQ Section - Premium Design with 6 Background Images */}
+          {/* SEO: FAQ Section - Premium Design with Beautiful Background Images */}
           <section className="relative py-20 sm:py-24 md:py-28 lg:py-32 bg-gradient-to-b from-rose-50/30 via-pink-50/20 to-purple-50/30 overflow-hidden">
             {/* Decorative Background Elements */}
             <div className="absolute inset-0 grain opacity-20" />
             <div className="absolute top-0 left-0 w-64 h-64 bg-pink-200/10 rounded-full blur-3xl" />
             <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-200/10 rounded-full blur-3xl" />
             
-            {/* 6 Background Images with Scroll Animations - Light & Responsive */}
+            {/* Beautiful Background Images - Restored for Premium Design */}
             {/* Image 1 - Top Left */}
             <motion.div
               initial={{ opacity: 0, x: -50, y: -20 }}
@@ -1335,19 +1299,6 @@ export default function Home() {
               viewport={{ once: true, margin: '-100px' }}
               transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1] }}
               className="absolute left-0 top-[8%] w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 opacity-[0.03] sm:opacity-[0.04] md:opacity-[0.05] pointer-events-none z-0"
-            >
-              <motion.div
-                animate={{
-                  y: [0, -12, 0],
-                  rotate: [0, 2, 0],
-                }}
-                transition={{
-                  duration: 8,
-                  repeat: Infinity,
-                  ease: [0.25, 0.1, 0.25, 1],
-                  repeatType: 'loop',
-                }}
-                className="w-full h-full relative"
               >
                 <Image
                   src="/images/imgi_23_default-removebg-preview.png"
@@ -1357,7 +1308,6 @@ export default function Home() {
                   sizes="(max-width: 640px) 96px, (max-width: 1024px) 128px, 192px"
                   loading="lazy"
                 />
-              </motion.div>
             </motion.div>
             
             {/* Image 2 - Top Right */}
@@ -1367,20 +1317,6 @@ export default function Home() {
               viewport={{ once: true, margin: '-100px' }}
               transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1], delay: 0.15 }}
               className="absolute right-0 top-[12%] w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 opacity-[0.03] sm:opacity-[0.04] md:opacity-[0.05] pointer-events-none z-0"
-            >
-              <motion.div
-                animate={{
-                  y: [0, 10, 0],
-                  rotate: [0, -2, 0],
-                }}
-                transition={{
-                  duration: 9,
-                  repeat: Infinity,
-                  ease: [0.25, 0.1, 0.25, 1],
-                  repeatType: 'loop',
-                  delay: 0.3,
-                }}
-                className="w-full h-full relative"
               >
                 <Image
                   src="/images/imgi_191_images-removebg-preview.png"
@@ -1390,7 +1326,6 @@ export default function Home() {
                   sizes="(max-width: 640px) 96px, (max-width: 1024px) 128px, 192px"
                   loading="lazy"
                 />
-              </motion.div>
             </motion.div>
             
             {/* Image 3 - Middle Left */}
@@ -1400,20 +1335,6 @@ export default function Home() {
               viewport={{ once: true, margin: '-100px' }}
               transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1], delay: 0.3 }}
               className="absolute left-4 sm:left-8 top-[45%] w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 opacity-[0.025] sm:opacity-[0.035] md:opacity-[0.045] pointer-events-none z-0"
-            >
-              <motion.div
-                animate={{
-                  y: [0, -8, 0],
-                  rotate: [0, -1.5, 0],
-                }}
-                transition={{
-                  duration: 10,
-                  repeat: Infinity,
-                  ease: [0.25, 0.1, 0.25, 1],
-                  repeatType: 'loop',
-                  delay: 0.6,
-                }}
-                className="w-full h-full relative"
               >
                 <Image
                   src="/images/imgi_303_images-removebg-preview.png"
@@ -1423,7 +1344,6 @@ export default function Home() {
                   sizes="(max-width: 640px) 80px, (max-width: 1024px) 112px, 176px"
                   loading="lazy"
                 />
-              </motion.div>
             </motion.div>
             
             {/* Image 4 - Middle Right */}
@@ -1433,20 +1353,6 @@ export default function Home() {
               viewport={{ once: true, margin: '-100px' }}
               transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1], delay: 0.45 }}
               className="absolute right-4 sm:right-8 top-[50%] w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 opacity-[0.025] sm:opacity-[0.035] md:opacity-[0.045] pointer-events-none z-0"
-            >
-              <motion.div
-                animate={{
-                  y: [0, 8, 0],
-                  rotate: [0, 1.5, 0],
-                }}
-                transition={{
-                  duration: 11,
-                  repeat: Infinity,
-                  ease: [0.25, 0.1, 0.25, 1],
-                  repeatType: 'loop',
-                  delay: 0.9,
-                }}
-                className="w-full h-full relative"
               >
                 <Image
                   src="/images/imgi_206_images-removebg-preview.png"
@@ -1456,7 +1362,6 @@ export default function Home() {
                   sizes="(max-width: 640px) 80px, (max-width: 1024px) 112px, 176px"
                   loading="lazy"
                 />
-              </motion.div>
             </motion.div>
             
             {/* Image 5 - Bottom Left */}
@@ -1466,20 +1371,6 @@ export default function Home() {
               viewport={{ once: true, margin: '-100px' }}
               transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1], delay: 0.6 }}
               className="absolute left-0 sm:left-4 bottom-[15%] w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 opacity-[0.025] sm:opacity-[0.035] md:opacity-[0.045] pointer-events-none z-0"
-            >
-              <motion.div
-                animate={{
-                  y: [0, -10, 0],
-                  rotate: [0, -2, 0],
-                }}
-                transition={{
-                  duration: 9,
-                  repeat: Infinity,
-                  ease: [0.25, 0.1, 0.25, 1],
-                  repeatType: 'loop',
-                  delay: 1.2,
-                }}
-                className="w-full h-full relative"
               >
                 <Image
                   src="/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM__1_-removebg-preview.png"
@@ -1489,7 +1380,6 @@ export default function Home() {
                   sizes="(max-width: 640px) 88px, (max-width: 1024px) 120px, 184px"
                   loading="lazy"
                 />
-              </motion.div>
             </motion.div>
             
             {/* Image 6 - Bottom Right */}
@@ -1499,20 +1389,6 @@ export default function Home() {
               viewport={{ once: true, margin: '-100px' }}
               transition={{ duration: 1.2, ease: [0.25, 0.1, 0.25, 1], delay: 0.75 }}
               className="absolute right-0 sm:right-4 bottom-[20%] w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 opacity-[0.025] sm:opacity-[0.035] md:opacity-[0.045] pointer-events-none z-0"
-            >
-              <motion.div
-                animate={{
-                  y: [0, 10, 0],
-                  rotate: [0, 2, 0],
-                }}
-                transition={{
-                  duration: 10,
-                  repeat: Infinity,
-                  ease: [0.25, 0.1, 0.25, 1],
-                  repeatType: 'loop',
-                  delay: 1.5,
-                }}
-                className="w-full h-full relative"
               >
                 <Image
                   src="/images/WhatsApp_Image_2025-12-26_at_12.09.07_PM__1_-removebg-preview.png"
@@ -1522,7 +1398,6 @@ export default function Home() {
                   sizes="(max-width: 640px) 88px, (max-width: 1024px) 120px, 184px"
                   loading="lazy"
                 />
-              </motion.div>
             </motion.div>
             
             <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
