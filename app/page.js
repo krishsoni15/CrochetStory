@@ -34,6 +34,8 @@ if (typeof window !== 'undefined') {
 const ALL_AVAILABLE_IMAGES = [
   '/images/WhatsApp_Image_2025-12-26_at_12.09.07_PM__1_-removebg-preview.png',
   '/images/WhatsApp_Image_2025-12-26_at_12.09.08_PM-removebg-preview.png',
+  // '/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM__1_-removebg-preview.png',
+  // '/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM__1_-removaebg-preview.png',
   '/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM__1_-removebg-preview.png',
   '/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM-removebg-preview.png',
   '/images/WhatsApp_Image_2025-12-26_at_12.09.11_PM__2_-removebg-preview.png',
@@ -1373,7 +1375,7 @@ export default function Home() {
               className="absolute left-0 sm:left-4 bottom-[15%] w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 opacity-[0.025] sm:opacity-[0.035] md:opacity-[0.045] pointer-events-none z-0"
               >
                 <Image
-                  src="/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM__1_-removebg-preview.png"
+                  src="/images/WhatsApp_Image_2025-12-26_at_12.09.09_PM__1_-removaebg-preview.png"
                   alt=""
                   fill
                   className="object-contain"

@@ -101,20 +101,20 @@ export default function Navbar() {
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={motionConfig.arrive}
-      style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        zIndex: 9999,
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10000,
         width: '100%'
       }}
-      className={`fixed top-0 left-0 right-0 z-[9999] w-full transition-all duration-700 ${
-        scrolled 
-          ? 'glass shadow-soft bg-white/95 backdrop-blur-xl' 
-          : isHomePage 
-            ? 'bg-transparent' 
-            : 'bg-white/95 backdrop-blur-sm'
+      className={`fixed top-0 left-0 right-0 z-[10000] w-full transition-all duration-700 ${
+        scrolled
+          ? 'glass shadow-soft bg-white/95 backdrop-blur-xl'
+          : isHomePage
+          ? 'bg-transparent'
+          : 'bg-white/95 backdrop-blur-sm'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

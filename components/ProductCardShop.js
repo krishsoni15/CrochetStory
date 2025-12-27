@@ -34,6 +34,18 @@ export default function ProductCardShop({ product, onEdit, onDelete, onProductCl
     }
   }, []);
 
+  // Add modal-open class when order form is shown
+  useEffect(() => {
+    if (showOrderForm) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [showOrderForm]);
+
   // Reset image index when product changes
   useEffect(() => {
     setCurrentImageIndex(0);
@@ -468,7 +480,7 @@ export default function ProductCardShop({ product, onEdit, onDelete, onProductCl
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-white/95 backdrop-blur-sm rounded-2xl flex items-center justify-center p-4"
+            className="absolute inset-0 z-[9999] bg-white/95 backdrop-blur-sm rounded-2xl flex items-center justify-center p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <motion.div

@@ -123,6 +123,26 @@
     touch-action: none;
     overscroll-behavior: none;
   }
+
+  /* Ensure navbar stays visible when modals are open */
+  body.modal-open nav {
+    position: fixed !important;
+    z-index: 10000 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Additional navbar protection for all overlay scenarios */
+  nav {
+    position: fixed !important;
+    z-index: 10000 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+  }
   
   /* Ensure form scrolling works inside modal */
   body.modal-open .form-scroll-container {

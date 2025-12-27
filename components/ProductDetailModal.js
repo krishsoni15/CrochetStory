@@ -236,7 +236,7 @@ export default function ProductDetailModal({ product, isOpen, onClose }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9998] bg-black/95 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
+          className="fixed inset-0 z-[9998] bg-black/95 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 pt-24 sm:pt-28"
           onClick={() => {
             if (!isZoomed) onClose();
           }}
