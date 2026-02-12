@@ -25,6 +25,15 @@ export async function POST(request) {
       );
     }
 
+    // Check for Cloudinary configuration
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error('Cloudinary environment variables are missing');
+      return NextResponse.json(
+        { error: 'Server configuration error: Cloudinary credentials are missing' },
+        { status: 500 }
+      );
+    }
+
     const formData = await request.formData();
     const files = formData.getAll('images');
 
@@ -52,7 +61,7 @@ export async function POST(request) {
             transformation: [{ quality: 'auto', fetch_format: 'auto' }],
           },
           async (error, result) => {
-            await unlink(tempPath).catch(() => {});
+            await unlink(tempPath).catch(() => { });
             if (error) {
               reject(error);
             } else {
