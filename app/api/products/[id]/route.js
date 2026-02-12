@@ -13,7 +13,8 @@ async function isAuthenticated(request) {
   return verifyToken(token);
 }
 
-export async function PUT(request, { params }) {
+export async function PUT(request, props) {
+  const params = await props.params;
   try {
     const authenticated = await isAuthenticated(request);
     if (!authenticated) {
@@ -26,14 +27,14 @@ export async function PUT(request, { params }) {
     await dbConnect();
 
     const { id } = params;
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'Product ID is required' },
         { status: 400 }
       );
     }
-    
+
     const body = await request.json();
     const { name, description, price, category, images, offer } = body;
 
@@ -44,28 +45,28 @@ export async function PUT(request, { params }) {
         { status: 400 }
       );
     }
-    
+
     if (!description || !description.trim()) {
       return NextResponse.json(
         { error: 'Product description is required' },
         { status: 400 }
       );
     }
-    
+
     if (!price || isNaN(price) || Number(price) <= 0) {
       return NextResponse.json(
         { error: 'Valid price is required (must be greater than 0)' },
         { status: 400 }
       );
     }
-    
+
     if (!category || !category.trim()) {
       return NextResponse.json(
         { error: 'Product category is required' },
         { status: 400 }
       );
     }
-    
+
     if (!images || !Array.isArray(images) || images.length === 0) {
       return NextResponse.json(
         { error: 'At least one image is required' },
@@ -75,11 +76,11 @@ export async function PUT(request, { params }) {
 
     const product = await Product.findByIdAndUpdate(
       id,
-      { 
-        name: name.trim(), 
-        description: description.trim(), 
-        price: Number(price), 
-        category: category.trim(), 
+      {
+        name: name.trim(),
+        description: description.trim(),
+        price: Number(price),
+        category: category.trim(),
         images: images.filter(img => img && img.trim()), // Filter out empty images
         offer: (offer !== undefined && offer !== null && offer !== '') ? Math.min(Math.max(Number(offer), 0), 100) : 0, // Clamp between 0-100
       },
@@ -96,7 +97,7 @@ export async function PUT(request, { params }) {
     return NextResponse.json(product);
   } catch (error) {
     console.error('Error updating product:', error);
-    
+
     // Handle validation errors
     if (error.name === 'ValidationError') {
       return NextResponse.json(
@@ -104,14 +105,14 @@ export async function PUT(request, { params }) {
         { status: 400 }
       );
     }
-    
+
     if (error.name === 'CastError') {
       return NextResponse.json(
         { error: 'Invalid product ID format' },
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { error: error.message || 'Failed to update product' },
       { status: 500 }
@@ -119,7 +120,8 @@ export async function PUT(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(request, props) {
+  const params = await props.params;
   try {
     const authenticated = await isAuthenticated(request);
     if (!authenticated) {
@@ -132,14 +134,14 @@ export async function DELETE(request, { params }) {
     await dbConnect();
 
     const { id } = params;
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'Product ID is required' },
         { status: 400 }
       );
     }
-    
+
     const product = await Product.findByIdAndDelete(id);
 
     if (!product) {
@@ -149,20 +151,20 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Product deleted successfully',
-      deletedId: id 
+      deletedId: id
     });
   } catch (error) {
     console.error('Error deleting product:', error);
-    
+
     if (error.name === 'CastError') {
       return NextResponse.json(
         { error: 'Invalid product ID format' },
         { status: 400 }
       );
     }
-    
+
     return NextResponse.json(
       { error: error.message || 'Failed to delete product' },
       { status: 500 }
